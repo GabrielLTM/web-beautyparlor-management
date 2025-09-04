@@ -1,0 +1,17 @@
+# Ambientes Virtuais
+# Nunca envie a sua pasta .venv. Ela é específica da sua máquina e muito grande.
+.venv/
+venv/
+
+# Ficheiros de Cache do Python
+# São ficheiros temporários que o Python cria. Não são necessários no repositório.
+__pycache__/
+*.pyc
+
+# Ficheiros de configuração de IDEs (como o PyCharm)
+.idea/
+
+# ### O MAIS IMPORTANTE ###
+# Ficheiro de variáveis de ambiente. Contém as suas senhas e segredos.
+# Este ficheiro NUNCA deve ir para o GitHub.
+.env
