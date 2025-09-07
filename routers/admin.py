@@ -13,15 +13,18 @@ import models
 from security import gerar_hash_senha
 from dependencies import get_db, get_current_admin_user
 
+
 router = APIRouter(
     prefix="/painel/admin", # Todas as rotas aqui começarão com /painel/admin
     tags=["Administração"],
     dependencies=[Depends(get_current_admin_user)] # Protege todas as rotas deste router
 )
 
+
 # Configuração dos Templates
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(Path(BASE_DIR, 'templates')))
+
 
 
 @router.get("/", response_class=HTMLResponse)

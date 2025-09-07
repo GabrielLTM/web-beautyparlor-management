@@ -50,7 +50,15 @@ Tecnologias Utilizadas
 
     Controle de versões: Git e GitHub
 
-Como executar o projeto localmente
+## Metodologia e Agradecimentos
+
+Este projeto foi desenvolvido com uma metodologia de prototipagem rápida e desenvolvimento interativo. A visão para as funcionalidades, a arquitetura do software, a modelagem do banco de dados e todo o processo de depuração e testes foram conduzidos por mim.
+
+Para acelerar a escrita do código e servir como uma ferramenta de aprendizado, utilizei o Google Gemini como um assistente de programação. Esta colaboração permitiu-me focar nos aspetos estratégicos do projeto — como o design do fluxo de trabalho do utilizador e a lógica de negócio — enquanto o Gemini cuidava da implementação técnica.
+
+A capacidade de guiar uma ferramenta de IA para construir uma aplicação complexa e funcional foi uma parte fundamental da minha experiência de aprendizado neste projeto.
+
+## Como executar o projeto localmente
 
 Siga os passos abaixo para configurar e executar a aplicação no seu ambiente local.
 
