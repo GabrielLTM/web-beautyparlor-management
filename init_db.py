@@ -1,3 +1,18 @@
+"""
+Script de utilidade para inicializar o banco de dados.
+
+ATENÇÃO: Este é um script destrutivo e deve ser usado apenas em ambiente
+de desenvolvimento. Ele não faz parte da aplicação principal.
+
+O seu propósito é recriar completamente a estrutura do banco de dados e,
+opcionalmente, popular as tabelas com dados iniciais ("seeding") para facilitar os testes e o desenvolvimento.
+
+O script executa as seguintes ações:
+1.  Destrói todas as tabelas existentes no banco de dados (`drop_all`).
+2.  Cria todas as tabelas novamente com base na estrutura definida em `models.py` (`create_all`).
+3.  Verifica se a tabela de funcionários está vazia. Se estiver, ele insere um conjunto de dados iniciais
+(funcionários e serviços) para que a aplicação possa ser usada imediatamente.
+"""
 from decimal import Decimal
 from database import engine, Base, SessionLocal
 import models
@@ -6,15 +21,20 @@ from security import gerar_hash_senha
 # --- DESTRUINDO E CRIANDO AS TABELAS ---
 
 print("Iniciando a recriação das tabelas no banco de dados...")
+# Apaga todas as tabelas existentes. Perigoso em produção!
 Base.metadata.drop_all(bind=engine)
 print("Tabelas existentes destruídas com sucesso.")
+# Cria as novas tabelas com base nos modelos definidos em models.py.
 Base.metadata.create_all(bind=engine)
 print("Novas tabelas (com estrutura atualizada) criadas com sucesso.")
 
-# --- SEEDING (POPULAR COM DADOS REAIS) ---
+# --- SEEDING (POPULAR COM DADOS INICIAIS) ---
 
+# Abre uma nova sessão com o banco de dados para inserir os dados.
 db = SessionLocal()
 
+# Verifica se a tabela de funcionários está vazia para evitar inserir dados duplicados.
+# Isto torna o processo de seeding idempotente.
 if not db.query(models.Funcionario).first():
     print("Nenhum funcionário encontrado. Inserindo dados iniciais...")
 
@@ -83,12 +103,12 @@ if not db.query(models.Funcionario).first():
         )
         db.add(novo_servico)
 
-    # Confirma (commita) a transação
+    # Confirma (commita) todas as inserções de dados na transação.
     db.commit()
 
     print("Dados iniciais inseridos com sucesso.")
 else:
     print("O banco de dados já contém dados. Nenhum dado foi inserido.")
 
-# Fecha a sessão
+# Fecha a sessão com o banco de dados.
 db.close()
