@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 from routers import autenticacao, painel, admin
 from dependencies import NotAuthenticatedException
 
-# ### A "MÁGICA" ACONTECE AQUI ###
 # Carrega as variáveis de ambiente definidas no seu ficheiro .env
 load_dotenv()
 
@@ -27,11 +26,10 @@ app = FastAPI(
 async def auth_exception_handler(request: Request, exc: NotAuthenticatedException):
     return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
 
-# ### LINHA ALTERADA ###
-# Agora lê a chave secreta de forma segura a partir da variável de ambiente.
+# Lê a chave secreta de forma segura a partir da variável de ambiente.
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"))
 
-# Incluímos os routers na aplicação principal.
+# Routers incluídos na aplicação principal.
 app.include_router(autenticacao.router)
 app.include_router(painel.router)
 app.include_router(admin.router)

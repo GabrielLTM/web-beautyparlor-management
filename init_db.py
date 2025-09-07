@@ -28,7 +28,7 @@ if not db.query(models.Funcionario).first():
                                senha_hash=gerar_hash_senha("senha123"))
     db.add_all([func1, func2, func3])
 
-    # Lista de serviços que você coletou, já formatada para o banco de dados
+    # Lista de serviços formatada para o banco de dados
     servicos_data = [
         # Cabelo
         {'nome': 'Corte Fem', 'duracao_padrao_minutos': 40, 'preco_minimo': '90.00'},

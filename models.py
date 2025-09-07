@@ -43,9 +43,6 @@ class Funcionario(Base):
     agendamentos = relationship("Agendamento", back_populates="funcionario")
     bloqueios = relationship("Bloqueio", back_populates="funcionario")
     transacoes_credito_processadas = relationship("TransacaoCredito", back_populates="funcionario")
-
-    # ### CORREÇÃO AQUI ###
-    # Especificamos explicitamente qual chave estrangeira usar para esta relação.
     transacoes_conta_corrente = relationship(
         "TransacaoContaCorrente",
         back_populates="funcionario",
@@ -111,9 +108,6 @@ class TransacaoContaCorrente(Base):
     funcionario_id = Column(Integer, ForeignKey("funcionarios.id"), nullable=False)
     agendamento_id = Column(Integer, ForeignKey("agendamentos.id"), nullable=True)
     admin_id = Column(Integer, ForeignKey("funcionarios.id"), nullable=True)
-
-    # ### CORREÇÃO AQUI ###
-    # Especificamos qual chave estrangeira esta relação deve usar para voltar ao funcionário.
     funcionario = relationship("Funcionario", back_populates="transacoes_conta_corrente", foreign_keys=[funcionario_id])
     agendamento = relationship("Agendamento", back_populates="transacao_conta_corrente_associada")
 
