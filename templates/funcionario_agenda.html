@@ -16,8 +16,6 @@
     </style>
 </head>
 <body class="container">
-
-    <!-- O cabeçalho e os formulários permanecem os mesmos... -->
     <a href="/painel" class="btn btn-secondary mb-3">&larr; Voltar para o painel</a>
     <h1 class="mb-3">Agendas dos Funcionários</h1>
     <div class="mb-4 p-3 bg-light border rounded">
@@ -181,7 +179,7 @@
                                             <a href="/painel/agendamentos/{{ item.id }}/editar" class="btn btn-sm btn-warning">Editar Preço</a>
                                         {% endif %}
                                         {% if item.data_hora.date() >= data_hoje_obj %}
-                                            <form action="/agendamentos/{{ item.id }}/cancelar" method="post" class="d-inline"
+                                            <form action="/painel/agendamentos/{{ item.id }}/cancelar" method="post" class="d-inline"
                                                   onsubmit="return confirm('Tem certeza que deseja cancelar este agendamento?');">
                                                 <button type="submit" class="btn btn-sm btn-danger">Cancelar</button>
                                             </form>
@@ -196,7 +194,9 @@
                                 <td>{{ item.inicio.strftime('%H:%M') }} - {{ item.fim.strftime('%H:%M') }}</td>
                                 <td colspan="5"><strong>BLOQUEADO:</strong> {{ item.motivo }}</td>
                                 <td>
-                                    <form action="/bloqueios/{{ item.id }}/cancelar" method="post" class="d-inline"
+                                    <!-- ### CORREÇÃO AQUI ### -->
+                                    <!-- Adicionamos o prefixo '/painel' à URL da ação. -->
+                                    <form action="/painel/bloqueios/{{ item.id }}/cancelar" method="post" class="d-inline"
                                           onsubmit="return confirm('Tem certeza que deseja remover este bloqueio?');">
                                         <button type="submit" class="btn btn-sm btn-outline-secondary">Remover</button>
                                     </form>
@@ -211,7 +211,7 @@
         {% endif %}
     </div>
 
-    <!-- ================== MODAL DE PAGAMENTO ATUALIZADO ================== -->
+    <!-- Modals -->
     <div class="modal fade" id="modalPagamento" tabindex="-1" aria-labelledby="modalPagamentoLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
@@ -230,7 +230,6 @@
                         <option value="Dinheiro">Dinheiro</option>
                         <option value="Cartão de Crédito">Cartão de Crédito</option>
                         <option value="Cartão de Débito">Cartão de Débito</option>
-                        <!-- ### NOVA OPÇÃO ADICIONADA AQUI ### -->
                         <option value="Permuta">Permuta</option>
                     </select>
                 </div>
@@ -243,8 +242,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Modal de Cancelados e Scripts permanecem os mesmos... -->
     <div class="modal fade" id="modalCancelados" tabindex="-1" aria-labelledby="modalCanceladosLabel" aria-hidden="true">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -282,8 +279,19 @@
         </div>
       </div>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const dataAtualISO = '{{ data_atual_iso }}';
+            const dataAgendamentoInput = document.getElementById('data_agendamento');
+            if (dataAgendamentoInput) { dataAgendamentoInput.value = dataAtualISO; }
+            const inicioDataInput = document.getElementById('inicio_data');
+            if (inicioDataInput) { inicioDataInput.value = dataAtualISO; }
+            const fimDataInput = document.getElementById('fim_data');
+            if (fimDataInput) { fimDataInput.value = dataAtualISO; }
+        });
+
         const servicosData = {
             {% for servico in servicos %}
                 "{{ servico.id }}": { "duracao_padrao": {{ servico.duracao_padrao_minutos }} },
@@ -294,11 +302,8 @@
         servicoSelect.addEventListener('change', function() {
             const servicoId = this.value;
             const servicoInfo = servicosData[servicoId];
-            if (servicoInfo) {
-                duracaoInput.value = servicoInfo.duracao_padrao;
-            } else {
-                duracaoInput.value = '';
-            }
+            if (servicoInfo) { duracaoInput.value = servicoInfo.duracao_padrao; }
+            else { duracaoInput.value = ''; }
         });
 
         const modalPagamento = document.getElementById('modalPagamento');
@@ -306,21 +311,16 @@
         modalPagamento.addEventListener('show.bs.modal', function (event) {
             const button = event.relatedTarget;
             const agendamentoId = button.getAttribute('data-agendamento-id');
-            formFinalizar.action = `/agendamentos/${agendamentoId}/finalizar`;
+            formFinalizar.action = `/painel/agendamentos/${agendamentoId}/finalizar`;
         });
 
         const whatsappInput = document.getElementById('whatsapp_cliente');
         whatsappInput.addEventListener('input', function (e) {
             let value = e.target.value.replace(/\D/g, '');
             value = value.substring(0, 11);
-            if (value.length > 2) {
-                value = `(${value.substring(0, 2)}) ${value.substring(2)}`;
-            }
-            if (value.length > 9) {
-                 value = `${value.substring(0, 10)}-${value.substring(10)}`;
-            } else if (value.length > 8 && value.length <=9) {
-                value = `${value.substring(0, 9)}-${value.substring(9)}`;
-            }
+            if (value.length > 2) { value = `(${value.substring(0, 2)}) ${value.substring(2)}`; }
+            if (value.length > 9) { value = `${value.substring(0, 10)}-${value.substring(10)}`; }
+            else if (value.length > 8 && value.length <=9) { value = `${value.substring(0, 9)}-${value.substring(9)}`; }
             e.target.value = value;
         });
 
