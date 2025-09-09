@@ -1,165 +1,158 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Adicionar Créditos para {{ cliente.nome }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .total-card {
-            position: sticky;
-            top: 1rem;
-        }
-    </style>
-</head>
-<body class="container mt-4">
+{% extends "base.html" %}
 
-    <a href="/painel/clientes/{{ cliente.id }}/historico" class="btn btn-secondary mb-3">&larr; Voltar para o Histórico do Cliente</a>
-    <h1>Vender Pacote de Créditos</h1>
-    <p class="lead">Cliente: <strong>{{ cliente.nome }}</strong></p>
+{% block title %}Adicionar Créditos para {{ cliente.nome }} - Bella Estética{% endblock %}
 
-    <form method="post">
-        <div class="row">
-            <!-- Coluna Principal: Seleção de Serviços -->
-            <div class="col-md-8">
-                <div class="card">
-                    <div class="card-header">
-                        1. Selecione os Serviços e Quantidades
-                    </div>
-                    <div class="card-body">
-                        <div id="servicos-container">
-                            <div class="row g-2 mb-2 align-items-center servico-item">
-                                <div class="col-8">
-                                    <select name="servicos_selecionados" class="form-select servico-select" required>
-                                        <option value="" disabled selected>-- Escolha um serviço --</option>
-                                        {% for categoria, servicos in servicos_agrupados.items() %}
-                                            <optgroup label="{{ categoria }}">
-                                                {% for servico in servicos %}
-                                                    <option value="{{ servico.id }}">{{ servico.nome }}</option>
-                                                {% endfor %}
-                                            </optgroup>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-3">
-                                    <input type="number" name="quantidade_servicos" class="form-control quantidade-input" value="1" min="1" required>
-                                </div>
-                                <div class="col-1"></div>
-                            </div>
-                        </div>
-                        <button type="button" id="add-servico-btn" class="btn btn-sm btn-outline-primary mt-2">+ Adicionar outro serviço</button>
-                    </div>
+{% block styles %}
+<style>
+    .total-card {
+        position: sticky;
+        top: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<a href="/painel/clientes/{{ cliente.id }}/historico" class="btn btn-outline-secondary mb-3">&larr; Voltar para o Histórico do Cliente</a>
+<h1>Vender Pacote de Créditos</h1>
+<p class="lead">Cliente: <strong>{{ cliente.nome }}</strong></p>
+
+<form method="post">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    1. Selecione os Serviços e Quantidades
                 </div>
-                <div class="card mt-4">
-                    <div class="card-header">
-                        3. Efetuar Pagamento
-                    </div>
-                    <div class="card-body">
-                         <div class="mb-3">
-                            <label for="metodo_pagamento" class="form-label">Forma de Pagamento:</label>
-                            <select id="metodo_pagamento" name="metodo_pagamento" class="form-select" required>
-                                <option value="" disabled selected>-- Escolha uma opção --</option>
-                                <option value="PIX">PIX</option>
-                                <option value="Dinheiro">Dinheiro</option>
-                                <option value="Cartão de Crédito">Cartão de Crédito</option>
-                                <option value="Cartão de Débito">Cartão de Débito</option>
-                            </select>
+                <div class="card-body">
+                    <div id="servicos-container">
+                        <div class="row g-2 mb-2 align-items-center servico-item">
+                            <div class="col-8">
+                                <select name="servicos_selecionados" class="form-select servico-select" required>
+                                    <option value="" disabled selected>-- Escolha um serviço --</option>
+                                    {% for categoria, servicos in servicos_agrupados.items() %}
+                                        <optgroup label="{{ categoria }}">
+                                            {% for servico in servicos %}
+                                                <option value="{{ servico.id }}">{{ servico.nome }}</option>
+                                            {% endfor %}
+                                        </optgroup>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-3">
+                                <input type="number" name="quantidade_servicos" class="form-control quantidade-input" value="1" min="1" required>
+                            </div>
+                            <div class="col-1"></div>
                         </div>
                     </div>
+                    <button type="button" id="add-servico-btn" class="btn btn-sm btn-outline-primary mt-2">+ Adicionar outro serviço</button>
                 </div>
             </div>
-
-            <!-- Coluna Lateral: Desconto e Total -->
-            <div class="col-md-4">
-                <div class="card total-card">
-                    <div class="card-header">
-                        2. Desconto e Valor Final
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="desconto_percentual" class="form-label">Desconto (%):</label>
-                            <!-- ### CAMPO DE DESCONTO ATUALIZADO ### -->
-                            <!-- O atributo 'max' agora é preenchido dinamicamente com o limite do backend. -->
-                            <input type="number" id="desconto_percentual" name="desconto_percentual" class="form-control"
-                                   value="0" min="0" max="{{ limite_desconto }}">
-                            <!-- Adicionamos um texto de ajuda para informar o utilizador sobre o limite. -->
-                            <div class="form-text">
-                                O desconto máximo permitido é de {{ limite_desconto }}%.
-                            </div>
-                        </div>
-                        <hr>
-                        <div class="text-center">
-                            <p class="mb-1">Valor Bruto:</p>
-                            <h4 id="valor-bruto" class="mb-3">R$ 0,00</h4>
-                            <p class="mb-1">Desconto:</p>
-                            <h4 id="valor-desconto" class="mb-3 text-danger">- R$ 0,00</h4>
-                            <p class="mb-1"><strong>Valor Total a Pagar:</strong></p>
-                            <h2 id="valor-total" class="fw-bold text-success">R$ 0,00</h2>
-                            <input type="hidden" id="valor_total_pago" name="valor_total_pago" value="0">
-                        </div>
+            <div class="card mt-4">
+                <div class="card-header">
+                    3. Efetuar Pagamento
+                </div>
+                <div class="card-body">
+                     <div class="mb-3">
+                        <label for="metodo_pagamento" class="form-label">Forma de Pagamento:</label>
+                        <select id="metodo_pagamento" name="metodo_pagamento" class="form-select" required>
+                            <option value="" disabled selected>-- Escolha uma opção --</option>
+                            <option value="PIX">PIX</option>
+                            <option value="Dinheiro">Dinheiro</option>
+                            <option value="Cartão de Crédito">Cartão de Crédito</option>
+                            <option value="Cartão de Débito">Cartão de Débito</option>
+                        </select>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="d-grid gap-2 mt-4">
-            <button type="submit" class="btn btn-primary btn-lg">Confirmar Venda do Pacote</button>
+
+        <div class="col-md-4">
+            <div class="card total-card">
+                <div class="card-header">
+                    2. Desconto e Valor Final
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="desconto_percentual" class="form-label">Desconto (%):</label>
+                        <input type="number" id="desconto_percentual" name="desconto_percentual" class="form-control"
+                               value="0" min="0" max="{{ limite_desconto }}">
+                        <div class="form-text">
+                            O desconto máximo permitido é de {{ limite_desconto }}%.
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <p class="mb-1">Valor Bruto:</p>
+                        <h4 id="valor-bruto" class="mb-3">R$ 0,00</h4>
+                        <p class="mb-1">Desconto:</p>
+                        <h4 id="valor-desconto" class="mb-3 text-danger">- R$ 0,00</h4>
+                        <p class="mb-1"><strong>Valor Total a Pagar:</strong></p>
+                        <h2 id="valor-total" class="fw-bold text-success">R$ 0,00</h2>
+                        <input type="hidden" id="valor_total_pago" name="valor_total_pago" value="0">
+                    </div>
+                </div>
+            </div>
         </div>
-    </form>
+    </div>
+    <div class="d-grid gap-2 mt-4">
+        <button type="submit" class="btn btn-primary btn-lg">Confirmar Venda do Pacote</button>
+    </div>
+</form>
+{% endblock %}
 
+{% block scripts %}
+<script>
+    const servicosData = {{ servicos_json|tojson }};
+    const container = document.getElementById('servicos-container');
+    const addBtn = document.getElementById('add-servico-btn');
+    const valorBrutoEl = document.getElementById('valor-bruto');
+    const valorDescontoEl = document.getElementById('valor-desconto');
+    const valorTotalEl = document.getElementById('valor-total');
+    const descontoInput = document.getElementById('desconto_percentual');
+    const valorTotalHiddenInput = document.getElementById('valor_total_pago');
 
-    <!-- Script -->
-    <script>
-        const servicosData = {{ servicos_json|tojson }};
-        const container = document.getElementById('servicos-container');
-        const addBtn = document.getElementById('add-servico-btn');
-        const valorBrutoEl = document.getElementById('valor-bruto');
-        const valorDescontoEl = document.getElementById('valor-desconto');
-        const valorTotalEl = document.getElementById('valor-total');
-        const descontoInput = document.getElementById('desconto_percentual');
-        const valorTotalHiddenInput = document.getElementById('valor_total_pago');
-
-        function calcularTotal() {
-            let bruto = 0;
-            document.querySelectorAll('.servico-item').forEach(item => {
-                const servicoId = item.querySelector('.servico-select').value;
-                const quantidade = parseInt(item.querySelector('.quantidade-input').value) || 0;
-                if (servicoId && quantidade > 0 && servicosData[servicoId]) {
-                    bruto += servicosData[servicoId].preco * quantidade;
-                }
-            });
-            const percentualDesconto = parseFloat(descontoInput.value) || 0;
-            const valorDesconto = (bruto * percentualDesconto) / 100;
-            const total = bruto - valorDesconto;
-            valorBrutoEl.textContent = `R$ ${bruto.toFixed(2).replace('.', ',')}`;
-            valorDescontoEl.textContent = `- R$ ${valorDesconto.toFixed(2).replace('.', ',')}`;
-            valorTotalEl.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
-            valorTotalHiddenInput.value = total.toFixed(2);
-        }
-
-        function criarNovoCampoServico() {
-            const novoItem = container.firstElementChild.cloneNode(true);
-            novoItem.querySelector('.servico-select').value = '';
-            novoItem.querySelector('.quantidade-input').value = '1';
-            const removeBtnContainer = novoItem.querySelector('.col-1');
-            removeBtnContainer.innerHTML = '<button type="button" class="btn btn-sm btn-danger remove-servico-btn">X</button>';
-            container.appendChild(novoItem);
-        }
-
-        addBtn.addEventListener('click', criarNovoCampoServico);
-        descontoInput.addEventListener('input', calcularTotal);
-        document.addEventListener('change', (e) => {
-            if (e.target.classList.contains('servico-select') || e.target.classList.contains('quantidade-input')) {
-                calcularTotal();
+    function calcularTotal() {
+        let bruto = 0;
+        document.querySelectorAll('.servico-item').forEach(item => {
+            const servicoId = item.querySelector('.servico-select').value;
+            const quantidade = parseInt(item.querySelector('.quantidade-input').value) || 0;
+            if (servicoId && quantidade > 0 && servicosData[servicoId]) {
+                bruto += servicosData[servicoId].preco * quantidade;
             }
         });
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('remove-servico-btn')) {
-                e.target.closest('.servico-item').remove();
-                calcularTotal();
-            }
-        });
+        const percentualDesconto = parseFloat(descontoInput.value) || 0;
+        const valorDesconto = (bruto * percentualDesconto) / 100;
+        const total = bruto - valorDesconto;
+        valorBrutoEl.textContent = `R$ ${bruto.toFixed(2).replace('.', ',')}`;
+        valorDescontoEl.textContent = `- R$ ${valorDesconto.toFixed(2).replace('.', ',')}`;
+        valorTotalEl.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+        valorTotalHiddenInput.value = total.toFixed(2);
+    }
 
-        calcularTotal();
-    </script>
-</body>
-</html>
+    function criarNovoCampoServico() {
+        const novoItem = container.firstElementChild.cloneNode(true);
+        novoItem.querySelector('.servico-select').value = '';
+        novoItem.querySelector('.quantidade-input').value = '1';
+        const removeBtnContainer = novoItem.querySelector('.col-1');
+        removeBtnContainer.innerHTML = '<button type="button" class="btn btn-sm btn-danger remove-servico-btn">X</button>';
+        container.appendChild(novoItem);
+    }
+
+    addBtn.addEventListener('click', criarNovoCampoServico);
+    descontoInput.addEventListener('input', calcularTotal);
+    document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('servico-select') || e.target.classList.contains('quantidade-input')) {
+            calcularTotal();
+        }
+    });
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-servico-btn')) {
+            e.target.closest('.servico-item').remove();
+            calcularTotal();
+        }
+    });
+
+    calcularTotal();
+</script>
+{% endblock %}
