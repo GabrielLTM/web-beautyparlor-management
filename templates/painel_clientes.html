@@ -165,22 +165,14 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
-    // Ativa a biblioteca Select2 no campo de seleção
-    $(document).ready(function() {
-        $('#cliente_id_pacote').select2({
-            theme: 'bootstrap-5',
-            dropdownParent: $('#modalVendaPacote') // Garante que o menu de pesquisa apareça dentro do modal
-        });
-    });
-
     const servicosData = {{ servicos_json|tojson }};
     const servicosAgrupados = {{ servicos_agrupados|tojson }};
     const container = document.getElementById('servicos-container');
     const addBtn = document.getElementById('add-servico-btn');
     const descontoInput = document.getElementById('desconto_percentual');
     const formVendaPacote = document.getElementById('formVendaPacote');
-    const selectClientePacote = document.getElementById('cliente_id_pacote');
 
+    // Mantenha as suas funções e listeners existentes
     function preencherSelectServicos(selectElement) {
         selectElement.innerHTML = '<option value="" disabled selected>-- Escolha um serviço --</option>';
         for (const categoria in servicosAgrupados) {
@@ -240,12 +232,27 @@
         }
     });
 
-    selectClientePacote.addEventListener('change', function() {
-        const clienteId = this.value;
-        formVendaPacote.action = clienteId ? `/painel/clientes/${clienteId}/creditos` : '';
-    });
-
     preencherSelectServicos(container.querySelector('.servico-select'));
     calcularTotal();
+
+    // ### CÓDIGO CORRIGIDO ###
+    $(document).ready(function() {
+        const selectClientePacote = $('#cliente_id_pacote');
+
+        selectClientePacote.select2({
+            theme: 'bootstrap-5',
+            dropdownParent: $('#modalVendaPacote')
+        });
+
+        // Este é o listener correto, usando jQuery, que funciona com o Select2
+        selectClientePacote.on('change', function() {
+            const clienteId = $(this).val();
+            if (clienteId) {
+                formVendaPacote.action = `/painel/clientes/${clienteId}/creditos`;
+            } else {
+                formVendaPacote.action = '';
+            }
+        });
+    });
 </script>
 {% endblock %}
