@@ -7,8 +7,15 @@
 
 <div class="card my-4">
     <div class="card-body text-center">
-        <h5 class="card-title">Período da Análise</h5>
-        <p class="card-text fs-4">{{ data_inicio_str }} até {{ data_fim_str }}</p>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <a href="/painel/dashboard?data={{ data_semana_anterior }}" class="btn btn-outline-primary">&laquo; Semana Anterior</a>
+            <div class="px-3">
+                <h5 class="card-title mb-0">Período da Análise</h5>
+                <p class="card-text fs-4 mb-0">{{ data_inicio_str }} até {{ data_fim_str }}</p>
+            </div>
+            <a href="/painel/dashboard?data={{ data_proxima_semana }}" class="btn btn-outline-primary">Próxima Semana &raquo;</a>
+        </div>
+        <hr>
         <h5 class="card-title mt-3">Total de Vendas</h5>
         <p class="card-text fs-2 fw-bold text-success">R$ {{ "%.2f"|format(total_vendas|float) }}</p>
         <a href="/painel/historico-desempenho" class="btn btn-primary mt-3">Ver Histórico Completo e Filtrar</a>

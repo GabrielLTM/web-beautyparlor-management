@@ -49,50 +49,79 @@ async def get_painel_gestao(request: Request, db: Session = Depends(get_db), use
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
-async def get_dashboard_page(request: Request, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+async def get_dashboard_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+    data: Optional[date] = Query(None)
+):
     """
     Exibe o dashboard de desempenho semanal para o funcionário logado.
 
     Esta rota implementa a regra de negócio específica do salão para a "semana
-    de pagamento". O período de análise é sempre de Terça-feira a Sábado.
-    A lógica decide qual semana exibir com base no dia atual: até Quarta-feira,
-    o dashboard mostra os resultados da semana anterior completa (para conferência
-    do pagamento); a partir de Quinta-feira, ele passa a mostrar os resultados da semana corrente.
+    de pagamento", permitindo a navegação entre semanas.
+    O período de análise é sempre de Terça-feira a Sábado. A lógica decide
+    qual semana exibir com base numa data de referência: até Quarta-feira,
+    mostra a semana anterior; a partir de Quinta-feira, mostra a semana corrente.
 
     Args:
         request (Request): O objeto de requisição do FastAPI.
-        db (Session): A sessão do banco de dados, injetada como dependência.
-        user (dict): Os dados do usuário logado, obtidos da sessão.
+        db (Session): A sessão do banco de dados.
+        user (dict): Os dados do usuário logado.
+        data (Optional[date]): Uma data de referência para calcular a semana.
+                               Se não for fornecida, usa a data atual.
 
     Returns:
-        TemplateResponse: Uma resposta HTML que renderiza a página 'dashboard.html',
-                          populada com o total de vendas e a lista de serviços
-                          concluídos no período de análise.
+        TemplateResponse: Renderiza a página 'dashboard.html' com os dados de
+                          desempenho e as datas para navegação.
     """
-    hoje = date.today()
-    weekday_hoje = hoje.weekday()
 
-    offset_para_terca = (weekday_hoje - 1 + 7) % 7
-    terca_desta_semana = hoje - timedelta(days=offset_para_terca)
-
-    if weekday_hoje in [3, 4, 5]:
-        data_inicio = terca_desta_semana
+    # 1. Determina a data de referência
+    if data:
+        # Se uma data for fornecida pela URL, use-a diretamente.
+        data_base = data
     else:
-        data_inicio = terca_desta_semana - timedelta(days=7)
+        # Se for o primeiro carregamento, aplica a regra de negócio.
+        hoje = date.today()
+        # Se for Dom, Seg, Ter ou Qua, a referência é a semana passada.
+        if hoje.weekday() in [6, 0, 1, 2]:
+            data_base = hoje - timedelta(days=7)
+        else: # Se for Qui, Sex ou Sab, a referência é a semana atual.
+            data_base = hoje
 
-    data_fim = data_inicio + timedelta(days=4)
+    # 2. Calcula a semana de trabalho (Terça a Sábado) que contém a data_base
+    weekday_base = data_base.weekday()
+    offset_para_terca = (weekday_base - 1 + 7) % 7
+    data_inicio = data_base - timedelta(days=offset_para_terca)
+    data_fim = data_inicio + timedelta(days=4)  # Sábado
+
+    # 3. Calcula as datas para os links de navegação
+    data_semana_anterior = data_inicio - timedelta(days=7)
+    data_proxima_semana = data_inicio + timedelta(days=7)
+
+    # Converte para datetime para a consulta no banco de dados
     inicio_periodo = datetime.combine(data_inicio, time.min)
     fim_periodo = datetime.combine(data_fim, time.max)
+
+    # Busca os dados no banco de dados
     agendamentos_concluidos = db.query(models.Agendamento).filter(
         models.Agendamento.funcionario_id == user['id'],
         models.Agendamento.status == "Concluído",
         models.Agendamento.data_hora.between(inicio_periodo, fim_periodo)
     ).all()
+
     total_vendas = sum(ag.preco_final for ag in agendamentos_concluidos if ag.preco_final is not None)
+
+    # Prepara o contexto para enviar ao template
     context = {
-        "request": request, "user": user, "agendamentos_concluidos": agendamentos_concluidos,
-        "total_vendas": total_vendas, "data_inicio_str": data_inicio.strftime("%d/%m/%Y"),
-        "data_fim_str": data_fim.strftime("%d/%m/%Y")
+        "request": request,
+        "user": user,
+        "agendamentos_concluidos": agendamentos_concluidos,
+        "total_vendas": total_vendas,
+        "data_inicio_str": data_inicio.strftime("%d/%m/%Y"),
+        "data_fim_str": data_fim.strftime("%d/%m/%Y"),
+        "data_semana_anterior": data_semana_anterior.isoformat(),
+        "data_proxima_semana": data_proxima_semana.isoformat()
     }
     return templates.TemplateResponse("dashboard.html", context)
 
