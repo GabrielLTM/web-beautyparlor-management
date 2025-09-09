@@ -13,6 +13,7 @@ from typing import Optional
 import math
 import models
 from dependencies import get_db, get_current_user
+from collections import defaultdict
 
 router = APIRouter(
     prefix="/painel",  # Todas as rotas aqui começarão com /painel
@@ -128,9 +129,13 @@ async def get_dashboard_page(
 
 @router.get("/historico-desempenho", response_class=HTMLResponse)
 async def get_pagina_historico_desempenho(
-    request: Request, db: Session = Depends(get_db), user: dict = Depends(get_current_user),
-    data_inicio: date | None = Query(default=None), data_fim: date | None = Query(default=None),
-    cliente_id: int | None = Query(default=None), servico_id: int | None = Query(default=None)
+    request: Request,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+    data_inicio_str: str | None = Query(default=None, alias="data_inicio"),
+    data_fim_str: str | None = Query(default=None, alias="data_fim"),
+    cliente_id_str: str | None = Query(default=None, alias="cliente_id"),
+    servico_id_str: str | None = Query(default=None, alias="servico_id")
 ):
     """
     Exibe o relatório de histórico de desempenho para o funcionário logado.
@@ -155,7 +160,12 @@ async def get_pagina_historico_desempenho(
                           populada com os agendamentos filtrados e as opções para os
                           menus de filtro.
     """
-    # ... (código da função get_pagina_historico_desempenho)
+    data_inicio = date.fromisoformat(data_inicio_str) if data_inicio_str else None
+    data_fim = date.fromisoformat(data_fim_str) if data_fim_str else None
+    cliente_id = int(cliente_id_str) if cliente_id_str else None
+    servico_id = int(servico_id_str) if servico_id_str else None
+
+    # Constrói a base da consulta
     query = db.query(models.Agendamento).options(
         joinedload(models.Agendamento.cliente),
         joinedload(models.Agendamento.servico)
@@ -163,28 +173,35 @@ async def get_pagina_historico_desempenho(
         models.Agendamento.funcionario_id == user['id'],
         models.Agendamento.status == "Concluído"
     )
+
+    # Aplica os filtros dinamicamente
     if data_inicio:
-        query = query.filter(models.Agendamento.data_hora >= datetime.combine(data_inicio, time.min))
+        inicio_periodo = datetime.combine(data_inicio, time.min)
+        query = query.filter(models.Agendamento.data_hora >= inicio_periodo)
     if data_fim:
-        query = query.filter(models.Agendamento.data_hora <= datetime.combine(data_fim, time.max))
+        fim_periodo = datetime.combine(data_fim, time.max)
+        query = query.filter(models.Agendamento.data_hora <= fim_periodo)
     if cliente_id:
         query = query.filter(models.Agendamento.cliente_id == cliente_id)
     if servico_id:
         query = query.filter(models.Agendamento.servico_id == servico_id)
+
     agendamentos_filtrados = query.order_by(models.Agendamento.data_hora.desc()).all()
     total_vendas_periodo = sum(ag.preco_final for ag in agendamentos_filtrados if ag.preco_final is not None)
+
+    # Prepara dados para os menus dropdown do formulário de filtro
     todos_clientes = db.query(models.Cliente).order_by(models.Cliente.nome).all()
     servicos_para_filtro = db.query(models.Servico).options(
         joinedload(models.Servico.categoria)
-    ).filter(
-        models.Servico.is_ativo == True
-    ).join(models.Categoria, isouter=True).order_by(
-        models.Categoria.nome, models.Servico.nome
-    ).all()
+    ).filter(models.Servico.is_ativo == True).join(
+        models.Categoria, isouter=True
+    ).order_by(models.Categoria.nome, models.Servico.nome).all()
+
     servicos_agrupados_filtro = defaultdict(list)
     for servico in servicos_para_filtro:
         categoria_nome = servico.categoria.nome if servico.categoria else "Outros"
         servicos_agrupados_filtro[categoria_nome].append(servico)
+
     context = {
         "request": request, "user": user, "agendamentos": agendamentos_filtrados,
         "total_vendas": total_vendas_periodo, "todos_clientes": todos_clientes,
