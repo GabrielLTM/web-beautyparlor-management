@@ -218,7 +218,7 @@
       </div>
       <form id="formFinalizar" method="post">
         <div class="modal-body">
-            <p>Selecione a forma de pagamento para concluir o serviço.</p>
+            <p>Selecione a forma de pagamento e confirme o valor para concluir o serviço.</p>
             <div class="mb-3">
                 <label for="metodo_pagamento" class="form-label">Forma de Pagamento:</label>
                 <select id="metodo_pagamento" name="metodo_pagamento" class="form-select" required>
@@ -232,6 +232,10 @@
                         Utilizar Crédito (Saldo: R$ <span id="saldoClienteModal"></span>)
                     </option>
                 </select>
+            </div>
+            <div class="mb-3" id="campoValorFinal" style="display: none;">
+                <label for="valor_final_pago" class="form-label">Valor Final Pago (R$):</label>
+                <input type="number" step="0.01" id="valor_final_pago" name="valor_final_pago" class="form-control" required>
             </div>
         </div>
         <div class="modal-footer">
@@ -284,7 +288,6 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // ... (código existente, sem alterações)
         const dataAtualISO = '{{ data_atual_iso }}';
         const dataAgendamentoInput = document.getElementById('data_agendamento');
         if (dataAgendamentoInput) { dataAgendamentoInput.value = dataAtualISO; }
@@ -314,49 +317,50 @@
     const formFinalizar = document.getElementById('formFinalizar');
     if (modalPagamento) {
         modalPagamento.addEventListener('show.bs.modal', function (event) {
-            console.log("--- Modal de Pagamento Aberto ---"); // DETETIVE 1
-
             const button = event.relatedTarget;
             const agendamentoId = button.getAttribute('data-agendamento-id');
             formFinalizar.action = `/painel/agendamentos/${agendamentoId}/finalizar`;
 
-            const clienteCreditoStr = button.getAttribute('data-cliente-credito');
-            const precoFinalStr = button.getAttribute('data-preco-final');
-            console.log("Valor do crédito (texto):", clienteCreditoStr); // DETETIVE 2
-            console.log("Preço final (texto):", precoFinalStr); // DETETIVE 3
-
-            const clienteCredito = parseFloat(clienteCreditoStr);
-            const precoFinal = parseFloat(precoFinalStr);
-            console.log("Valor do crédito (número):", clienteCredito); // DETETIVE 4
-            console.log("Preço final (número):", precoFinal); // DETETIVE 5
-
+            const clienteCredito = parseFloat(button.getAttribute('data-cliente-credito'));
+            const precoFinal = parseFloat(button.getAttribute('data-preco-final'));
             const opcaoCredito = document.getElementById('opcaoCredito');
-            const saldoClienteModal = document.getElementById('saldoClienteModal');
             const metodoPagamentoSelect = document.getElementById('metodo_pagamento');
 
+            // ### NOVA LÓGICA PARA O CAMPO DE VALOR FINAL ###
+            const campoValorFinal = document.getElementById('campoValorFinal');
+            const inputValorFinal = document.getElementById('valor_final_pago');
+
+            // Reset inicial do modal
             opcaoCredito.style.display = 'none';
             metodoPagamentoSelect.value = '';
+            campoValorFinal.style.display = 'none';
+            inputValorFinal.required = false;
+            inputValorFinal.value = precoFinal.toFixed(2); // Pré-preenche com o valor do serviço
 
-            console.log("A condição é (clienteCredito >= precoFinal):", clienteCredito >= precoFinal); // DETETIVE 6
+            // Lógica para Crédito em Conta
             if (clienteCredito >= precoFinal) {
-                console.log("CONDIÇÃO VERDADEIRA: Exibindo a opção de crédito."); // DETETIVE 7
-
-                // --- NOVA ABORDAGEM MAIS ROBUSTA ---
                 const textoOpcao = `Utilizar Crédito (Saldo: R$ ${clienteCredito.toFixed(2).replace('.', ',')})`;
-                opcaoCredito.textContent = textoOpcao; // Modificamos o texto do <option> inteiro
-                // --- FIM DA NOVA ABORDAGEM ---
-
+                opcaoCredito.textContent = textoOpcao;
                 opcaoCredito.style.display = 'block';
-            } else {
-                console.log("CONDIÇÃO FALSA: Mantendo a opção de crédito oculta."); // DETETIVE 8
             }
+
+            // Lógica para exibir/ocultar o campo de valor
+            metodoPagamentoSelect.addEventListener('change', function() {
+                const metodosComValor = ['PIX', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito'];
+                if (metodosComValor.includes(this.value)) {
+                    campoValorFinal.style.display = 'block';
+                    inputValorFinal.required = true;
+                } else {
+                    campoValorFinal.style.display = 'none';
+                    inputValorFinal.required = false;
+                }
+            });
         });
     }
 
     const whatsappInput = document.getElementById('whatsapp_cliente');
     if (whatsappInput) {
         whatsappInput.addEventListener('input', function (e) {
-            // ... (código existente, sem alterações)
             let value = e.target.value.replace(/\D/g, '');
             value = value.substring(0, 11);
             if (value.length > 2) { value = `(${value.substring(0, 2)}) ${value.substring(2)}`; }
@@ -369,7 +373,6 @@
     const seletorFuncionario = document.getElementById('seletorFuncionario');
     if (seletorFuncionario) {
         seletorFuncionario.addEventListener('change', function() {
-            // ... (código existente, sem alterações)
             const funcionarioId = this.value;
             if (funcionarioId) {
                 const urlParams = new URLSearchParams(window.location.search);

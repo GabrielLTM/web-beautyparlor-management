@@ -6,10 +6,11 @@ from sqlalchemy import text, or_
 from collections import defaultdict
 from pathlib import Path
 from fastapi.templating import Jinja2Templates
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date, time, timedelta, timezone
+import pytz
 from decimal import Decimal
+from typing import Optional
 import math
-
 import models
 from dependencies import get_db, get_current_user
 
@@ -683,8 +684,11 @@ async def handle_form_bloqueio(
 
 @router.post("/agendamentos/{agendamento_id}/finalizar")
 async def finalizar_agendamento(
-        agendamento_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_user),
-        metodo_pagamento: str = Form(...)
+    agendamento_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+    metodo_pagamento: str = Form(...),
+    valor_final_pago: Optional[Decimal] = Form(None)
 ):
     """
     Processa a finalização de um agendamento, registrando o pagamento.
@@ -700,7 +704,7 @@ async def finalizar_agendamento(
         -   Verifica se o cliente tem saldo suficiente e debita o valor do seu saldo de créditos.
         -   Regista a transação no extrato de créditos do cliente.
     3.  **Para todos os outros métodos (PIX, Dinheiro, etc.)**:
-        -   Registra uma 'Entrada' normal no Fluxo de Caixa geral do salão.
+        -   Registra uma 'Entrada' normal no Fluxo de Caixa com o valor exato informado no formulário.
 
     Em todos os casos, o status do agendamento é alterado para "Concluído" e um log de alteração é gerado.
 
@@ -709,6 +713,8 @@ async def finalizar_agendamento(
         db (Session): A sessão do banco de dados, injetada como dependência.
         user (dict): Os dados do usuário logado que está realizando a ação.
         metodo_pagamento (str): A forma de pagamento selecionada na janela modal.
+        valor_final_pago (Optional[Decimal]): O valor exato pago pelo cliente,
+        enviado pelo formulário para pagamentos monetários.
 
     Returns:
         RedirectResponse: Redireciona o usuário de volta para a página da agenda do funcionário,
@@ -723,9 +729,14 @@ async def finalizar_agendamento(
     if not db_agendamento:
         raise HTTPException(status_code=404, detail="Agendamento não encontrado")
 
-    if db_agendamento.data_hora > datetime.now(timezone.utc).astimezone(pytz.timezone('America/Sao_Paulo')):
+    sao_paulo_tz = pytz.timezone('America/Sao_Paulo')
+    agora_local_aware = datetime.now(sao_paulo_tz)
+    data_agendamento_aware = sao_paulo_tz.localize(db_agendamento.data_hora)
+
+    if data_agendamento_aware > agora_local_aware:
         raise HTTPException(status_code=403, detail="Não é possível finalizar um agendamento futuro.")
 
+    # A lógica de negócio só é executada se o agendamento ainda não estiver concluído.
     if db_agendamento.status != "Concluído":
         log_status = models.LogAlteracao(
             agendamento_id=agendamento_id, funcionario_id=user['id'],
@@ -738,7 +749,6 @@ async def finalizar_agendamento(
                 models.Configuracao.chave == "COMISSAO_SALAO_PERMUTA_PERC").first()
             percentual_comissao_salao = Decimal(comissao_obj.valor) if comissao_obj else Decimal("50")
             valor_comissao_salao = db_agendamento.preco_final * (percentual_comissao_salao / 100)
-
             nova_transacao_cc = models.TransacaoContaCorrente(
                 funcionario_id=db_agendamento.funcionario_id, agendamento_id=agendamento_id,
                 tipo="Débito", valor=valor_comissao_salao,
@@ -746,15 +756,11 @@ async def finalizar_agendamento(
             )
             db.add(nova_transacao_cc)
             db_agendamento.funcionario.saldo_conta_corrente -= valor_comissao_salao
+
         elif metodo_pagamento == "Credito em Conta":
-            # 1. Checagem de segurança no backend
             if db_agendamento.cliente.saldo_credito < db_agendamento.preco_final:
                 raise HTTPException(status_code=400, detail="Saldo de crédito insuficiente para realizar o pagamento.")
-
-            # 2. Debitar o valor do saldo de crédito do cliente
             db_agendamento.cliente.saldo_credito -= db_agendamento.preco_final
-
-            # 3. Criar um registo da transação de crédito (para o extrato do cliente)
             nova_transacao_credito = models.TransacaoCredito(
                 cliente_id=db_agendamento.cliente_id,
                 agendamento_id=agendamento_id,
@@ -763,20 +769,21 @@ async def finalizar_agendamento(
                 descricao=f"Pagamento serviço: {db_agendamento.servico.nome}"
             )
             db.add(nova_transacao_credito)
-            # 4. NENHUMA entrada no FluxoCaixa é criada.
-        # ==========================================================
 
         else:  # Para PIX, Dinheiro, Cartão, etc.
+            valor_a_registrar = valor_final_pago if valor_final_pago is not None else db_agendamento.preco_final
             novo_registro_caixa = models.FluxoCaixa(
                 descricao=f"Serviço: {db_agendamento.servico.nome} - Cliente: {db_agendamento.cliente.nome}",
-                valor=db_agendamento.preco_final, tipo="Entrada", metodo_pagamento=metodo_pagamento,
-                funcionario_id=db_agendamento.funcionario_id, agendamento_id=agendamento_id
+                valor=valor_a_registrar,
+                tipo="Entrada",
+                metodo_pagamento=metodo_pagamento,
+                funcionario_id=db_agendamento.funcionario_id,
+                agendamento_id=agendamento_id
             )
             db.add(novo_registro_caixa)
 
         db_agendamento.status = "Concluído"
         db.commit()
-
     funcionario_id = db_agendamento.funcionario_id
     data_agendamento = db_agendamento.data_hora.date()
     return RedirectResponse(url=f"/painel/funcionarios/{funcionario_id}?data={data_agendamento.isoformat()}",
