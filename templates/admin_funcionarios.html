@@ -1,80 +1,69 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerir Funcionários</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        /* Estilo para deixar a linha do funcionário inativo mais sutil */
-        .funcionario-inativo {
-            opacity: 0.6;
-            background-color: #f8f9fa;
-        }
-    </style>
-</head>
-<body class="container mt-4">
+{% extends "base.html" %}
 
-    <!-- ================== CABEÇALHO ================== -->
-    <a href="/painel/admin" class="btn btn-secondary mb-3">&larr; Voltar para Administração</a>
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Gerir Funcionários</h1>
-        <a href="/painel/admin/funcionarios/novo" class="btn btn-primary">Adicionar Novo Funcionário</a>
-    </div>
+{% block title %}Gerir Funcionários - Bella Estética{% endblock %}
 
-    <!-- ============= TABELA DE FUNCIONÁRIOS ============= -->
-    <table class="table table-hover">
-        <thead>
-            <tr>
-                <th>Nome</th>
-                <th>Cargo</th>
-                <th>Função</th>
-                <th>Status</th> <!-- Nova Coluna -->
-                <th>Ações</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% if funcionarios %}
-                {% for f in funcionarios %}
-                    <!-- Adiciona uma classe CSS se o funcionário estiver inativo -->
-                    <tr class="{% if not f.is_ativo %}funcionario-inativo{% endif %}">
-                        <td>{{ f.nome }}</td>
-                        <td>{{ f.cargo }}</td>
-                        <td>
-                            <span class="badge {% if f.funcao == 'Admin' %}bg-success{% else %}bg-secondary{% endif %}">
-                                {{ f.funcao }}
-                            </span>
-                        </td>
-                        <td>
-                            <!-- Badge de Status Ativo/Inativo -->
-                            <span class="badge {% if f.is_ativo %}bg-success{% else %}bg-danger{% endif %}">
-                                {{ 'Ativo' if f.is_ativo else 'Inativo' }}
-                            </span>
-                        </td>
-                        <td>
-                            <a href="/painel/admin/funcionarios/{{ f.id }}/editar" class="btn btn-sm btn-warning">Editar</a>
+{% block styles %}
+<style>
+    .funcionario-inativo {
+        opacity: 0.6;
+        background-color: #f8f9fa;
+    }
+</style>
+{% endblock %}
 
-                            <!-- ### LÓGICA DO BOTÃO DE STATUS ### -->
-                            <!-- O botão só aparece se o funcionário não for o admin logado -->
-                            {% if f.id != user.id %}
-                                <form action="/painel/admin/funcionarios/{{ f.id }}/toggle-status" method="post" class="d-inline">
-                                    {% if f.is_ativo %}
-                                        <button type="submit" class="btn btn-sm btn-danger">Desativar</button>
-                                    {% else %}
-                                        <button type="submit" class="btn btn-sm btn-success">Reativar</button>
-                                    {% endif %}
-                                </form>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-            {% else %}
-                <tr>
-                    <td colspan="5" class="text-center">Nenhum funcionário cadastrado.</td>
+{% block content %}
+<a href="/painel/admin" class="btn btn-outline-secondary mb-3">&larr; Voltar para Administração</a>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Gerir Funcionários</h1>
+    <a href="/painel/admin/funcionarios/novo" class="btn btn-primary">Adicionar Novo Funcionário</a>
+</div>
+
+<table class="table table-hover align-middle">
+    <thead>
+        <tr>
+            <th>Nome</th>
+            <th>Cargo</th>
+            <th>Função</th>
+            <th>Status</th>
+            <th>Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% if funcionarios %}
+            {% for f in funcionarios %}
+                <tr class="{% if not f.is_ativo %}funcionario-inativo{% endif %}">
+                    <td>{{ f.nome }}</td>
+                    <td>{{ f.cargo }}</td>
+                    <td>
+                        <span class="badge {% if f.funcao == 'Admin' %}bg-success{% else %}bg-secondary{% endif %}">
+                            {{ f.funcao }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge {% if f.is_ativo %}bg-success{% else %}bg-danger{% endif %}">
+                            {{ 'Ativo' if f.is_ativo else 'Inativo' }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="/painel/admin/funcionarios/{{ f.id }}/editar" class="btn btn-sm btn-warning">Editar</a>
+                        {% if f.id != user.id %}
+                            <form action="/painel/admin/funcionarios/{{ f.id }}/toggle-status" method="post" class="d-inline">
+                                {% if f.is_ativo %}
+                                    <button type="submit" class="btn btn-sm btn-danger">Desativar</button>
+                                {% else %}
+                                    <button type="submit" class="btn btn-sm btn-success">Reativar</button>
+                                {% endif %}
+                            </form>
+                        {% endif %}
+                    </td>
                 </tr>
-            {% endif %}
-        </tbody>
-    </table>
-
-</body>
-</html>
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="5" class="text-center">Nenhum funcionário cadastrado.</td>
+            </tr>
+        {% endif %}
+    </tbody>
+</table>
+{% endblock %}
