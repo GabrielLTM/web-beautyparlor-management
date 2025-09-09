@@ -1,40 +1,27 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administração - Painel de Gestão</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="container mt-4">
-    <a href="/painel" class="btn btn-secondary mb-3">&larr; Voltar para o painel principal</a>
-    <h1>Área de Administração</h1>
-    <p class="lead">Bem-vindo(a), {{ user.nome }}. Utilize as opções abaixo para gerir o sistema.</p>
+{% extends "base.html" %}
 
-    <div class="list-group mt-4">
-        <!-- Secção de Relatórios Financeiros -->
-        <a href="/painel/admin/desempenho" class="list-group-item list-group-item-action"><strong>Ver Desempenho da Equipa</strong></a>
-        <a href="/painel/admin/fluxo-caixa" class="list-group-item list-group-item-action"><strong>Ver Fluxo de Caixa</strong></a>
-        <!-- ### NOVO LINK ADICIONADO AQUI ### -->
-        <a href="/painel/admin/contas-correntes" class="list-group-item list-group-item-action"><strong>Gerir Contas Correntes</strong></a>
+{% block title %}Administração - Bella Estética{% endblock %}
 
-        <hr class="my-2">
+{% block content %}
+<h1>Área de Administração</h1>
+<p class="lead">Bem-vindo(a), {{ user.nome }}. Utilize as opções abaixo para gerir o sistema.</p>
 
-        <!-- Secção de Gestão de Pessoas -->
-        <a href="/painel/admin/funcionarios" class="list-group-item list-group-item-action">Gerir Funcionários</a>
+<div class="list-group mt-4">
+    <a href="/painel/admin/desempenho" class="list-group-item list-group-item-action"><strong>Ver Desempenho da Equipa</strong></a>
+    <a href="/painel/admin/fluxo-caixa" class="list-group-item list-group-item-action"><strong>Ver Fluxo de Caixa</strong></a>
+    <a href="/painel/admin/contas-correntes" class="list-group-item list-group-item-action"><strong>Gerir Contas Correntes</strong></a>
 
-        <hr class="my-2">
+    <hr class="my-2">
 
-        <!-- Secção de Gestão de Catálogo -->
-        <a href="/painel/admin/categorias" class="list-group-item list-group-item-action">Gerir Categorias de Serviços</a>
-        <a href="/painel/admin/servicos" class="list-group-item list-group-item-action">Gerir Serviços</a>
+    <a href="/painel/admin/funcionarios" class="list-group-item list-group-item-action">Gerir Funcionários</a>
 
-        <hr class="my-2">
+    <hr class="my-2">
 
-        <!-- Secção de Configurações do Sistema -->
-        <a href="/painel/admin/configuracoes" class="list-group-item list-group-item-action">Configurações Gerais</a>
-    </div>
+    <a href="/painel/admin/categorias" class="list-group-item list-group-item-action">Gerir Categorias de Serviços</a>
+    <a href="/painel/admin/servicos" class="list-group-item list-group-item-action">Gerir Serviços</a>
 
-</body>
-</html>
+    <hr class="my-2">
 
+    <a href="/painel/admin/configuracoes" class="list-group-item list-group-item-action">Configurações Gerais</a>
+</div>
+{% endblock %}
