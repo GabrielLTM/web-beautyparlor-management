@@ -169,7 +169,9 @@
                                         <button type="button" class="btn btn-sm btn-success btn-finalizar"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#modalPagamento"
-                                                data-agendamento-id="{{ item.id }}">
+                                                data-agendamento-id="{{ item.id }}"
+                                                data-cliente-credito="{{ item.cliente.saldo_credito }}"
+                                                data-preco-final="{{ item.preco_final }}">
                                             Finalizar
                                         </button>
                                     {% endif %}
@@ -226,6 +228,9 @@
                     <option value="Cartão de Crédito">Cartão de Crédito</option>
                     <option value="Cartão de Débito">Cartão de Débito</option>
                     <option value="Permuta">Permuta</option>
+                    <option value="Credito em Conta" id="opcaoCredito" style="display: none;">
+                        Utilizar Crédito (Saldo: R$ <span id="saldoClienteModal"></span>)
+                    </option>
                 </select>
             </div>
         </div>
@@ -279,6 +284,7 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // ... (código existente, sem alterações)
         const dataAtualISO = '{{ data_atual_iso }}';
         const dataAgendamentoInput = document.getElementById('data_agendamento');
         if (dataAgendamentoInput) { dataAgendamentoInput.value = dataAtualISO; }
@@ -295,40 +301,83 @@
     };
     const servicoSelect = document.getElementById('servico');
     const duracaoInput = document.getElementById('duracao_efetiva');
-    servicoSelect.addEventListener('change', function() {
-        const servicoId = this.value;
-        const servicoInfo = servicosData[servicoId];
-        if (servicoInfo) { duracaoInput.value = servicoInfo.duracao_padrao; }
-        else { duracaoInput.value = ''; }
-    });
+    if (servicoSelect) {
+        servicoSelect.addEventListener('change', function() {
+            const servicoId = this.value;
+            const servicoInfo = servicosData[servicoId];
+            if (servicoInfo) { duracaoInput.value = servicoInfo.duracao_padrao; }
+            else { duracaoInput.value = ''; }
+        });
+    }
 
     const modalPagamento = document.getElementById('modalPagamento');
     const formFinalizar = document.getElementById('formFinalizar');
-    modalPagamento.addEventListener('show.bs.modal', function (event) {
-        const button = event.relatedTarget;
-        const agendamentoId = button.getAttribute('data-agendamento-id');
-        formFinalizar.action = `/painel/agendamentos/${agendamentoId}/finalizar`;
-    });
+    if (modalPagamento) {
+        modalPagamento.addEventListener('show.bs.modal', function (event) {
+            console.log("--- Modal de Pagamento Aberto ---"); // DETETIVE 1
+
+            const button = event.relatedTarget;
+            const agendamentoId = button.getAttribute('data-agendamento-id');
+            formFinalizar.action = `/painel/agendamentos/${agendamentoId}/finalizar`;
+
+            const clienteCreditoStr = button.getAttribute('data-cliente-credito');
+            const precoFinalStr = button.getAttribute('data-preco-final');
+            console.log("Valor do crédito (texto):", clienteCreditoStr); // DETETIVE 2
+            console.log("Preço final (texto):", precoFinalStr); // DETETIVE 3
+
+            const clienteCredito = parseFloat(clienteCreditoStr);
+            const precoFinal = parseFloat(precoFinalStr);
+            console.log("Valor do crédito (número):", clienteCredito); // DETETIVE 4
+            console.log("Preço final (número):", precoFinal); // DETETIVE 5
+
+            const opcaoCredito = document.getElementById('opcaoCredito');
+            const saldoClienteModal = document.getElementById('saldoClienteModal');
+            const metodoPagamentoSelect = document.getElementById('metodo_pagamento');
+
+            opcaoCredito.style.display = 'none';
+            metodoPagamentoSelect.value = '';
+
+            console.log("A condição é (clienteCredito >= precoFinal):", clienteCredito >= precoFinal); // DETETIVE 6
+            if (clienteCredito >= precoFinal) {
+                console.log("CONDIÇÃO VERDADEIRA: Exibindo a opção de crédito."); // DETETIVE 7
+
+                // --- NOVA ABORDAGEM MAIS ROBUSTA ---
+                const textoOpcao = `Utilizar Crédito (Saldo: R$ ${clienteCredito.toFixed(2).replace('.', ',')})`;
+                opcaoCredito.textContent = textoOpcao; // Modificamos o texto do <option> inteiro
+                // --- FIM DA NOVA ABORDAGEM ---
+
+                opcaoCredito.style.display = 'block';
+            } else {
+                console.log("CONDIÇÃO FALSA: Mantendo a opção de crédito oculta."); // DETETIVE 8
+            }
+        });
+    }
 
     const whatsappInput = document.getElementById('whatsapp_cliente');
-    whatsappInput.addEventListener('input', function (e) {
-        let value = e.target.value.replace(/\D/g, '');
-        value = value.substring(0, 11);
-        if (value.length > 2) { value = `(${value.substring(0, 2)}) ${value.substring(2)}`; }
-        if (value.length > 9) { value = `${value.substring(0, 10)}-${value.substring(10)}`; }
-        else if (value.length > 8 && value.length <=9) { value = `${value.substring(0, 9)}-${value.substring(9)}`; }
-        e.target.value = value;
-    });
+    if (whatsappInput) {
+        whatsappInput.addEventListener('input', function (e) {
+            // ... (código existente, sem alterações)
+            let value = e.target.value.replace(/\D/g, '');
+            value = value.substring(0, 11);
+            if (value.length > 2) { value = `(${value.substring(0, 2)}) ${value.substring(2)}`; }
+            if (value.length > 9) { value = `${value.substring(0, 10)}-${value.substring(10)}`; }
+            else if (value.length > 8 && value.length <=9) { value = `${value.substring(0, 9)}-${value.substring(9)}`; }
+            e.target.value = value;
+        });
+    }
 
     const seletorFuncionario = document.getElementById('seletorFuncionario');
-    seletorFuncionario.addEventListener('change', function() {
-        const funcionarioId = this.value;
-        if (funcionarioId) {
-            const urlParams = new URLSearchParams(window.location.search);
-            const dataParam = urlParams.get('data') || '{{ data_atual_iso }}';
-            const novaUrl = `/painel/funcionarios/${funcionarioId}?data=${dataParam}`;
-            window.location.href = novaUrl;
-        }
-    });
+    if (seletorFuncionario) {
+        seletorFuncionario.addEventListener('change', function() {
+            // ... (código existente, sem alterações)
+            const funcionarioId = this.value;
+            if (funcionarioId) {
+                const urlParams = new URLSearchParams(window.location.search);
+                const dataParam = urlParams.get('data') || '{{ data_atual_iso }}';
+                const novaUrl = `/painel/funcionarios/${funcionarioId}?data=${dataParam}`;
+                window.location.href = novaUrl;
+            }
+        });
+    }
 </script>
 {% endblock %}
