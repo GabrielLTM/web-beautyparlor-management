@@ -68,3 +68,22 @@ async def process_login(request: Request, db: Session = Depends(get_db), usernam
     request.session['user'] = {"id": funcionario.id, "nome": funcionario.nome, "cargo": funcionario.cargo,
                                "funcao": funcionario.funcao}
     return RedirectResponse(url="/painel", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.get("/logout", tags=["Autenticação"])
+async def logout(request: Request):
+    """
+    Encerra a sessão do usuário (logout).
+
+    Esta rota limpa os dados da sessão do usuário, efetivamente desconectando-o
+    do sistema. Após limpar a sessão, o usuário é redirecionado para a
+    página de login.
+
+    Args:
+        request (Request): O objeto de requisição do FastAPI, usado para acessar e limpar a sessão.
+
+    Returns:
+        RedirectResponse: Redireciona o usuário para a página de login ('/login').
+    """
+    request.session.clear()
+    return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
