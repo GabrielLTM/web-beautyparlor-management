@@ -132,8 +132,11 @@ async def get_pagina_desempenho_equipa(
 
 @router.get("/fluxo-caixa", response_class=HTMLResponse)
 async def get_pagina_fluxo_caixa(
-    request: Request, db: Session = Depends(get_db), user: dict = Depends(get_current_admin_user),
-    data_filtro: date | None = Query(default=None), funcionario_id: int | None = Query(default=None)
+    request: Request,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_admin_user),
+    data_filtro_str: str | None = Query(default=None, alias="data_filtro"),
+    funcionario_id_str: str | None = Query(default=None, alias="funcionario_id")
 ):
     """
     Exibe a página de Fluxo de Caixa, detalhando as transações do dia.
@@ -159,21 +162,30 @@ async def get_pagina_fluxo_caixa(
         TemplateResponse: Uma resposta HTML que renderiza a página 'admin_fluxo_caixa.html',
                           populada com as transações filtradas e os resumos financeiros.
     """
-    # ... (código da função get_pagina_fluxo_caixa)
-    if data_filtro is None: data_filtro = date.today()
+    data_filtro = date.fromisoformat(data_filtro_str) if data_filtro_str else None
+    funcionario_id = int(funcionario_id_str) if funcionario_id_str else None
+
+    # Se nenhuma data for fornecida, assume o dia de hoje como padrão.
+    if data_filtro is None:
+        data_filtro = date.today()
+
     inicio_do_dia = datetime.combine(data_filtro, time.min)
     fim_do_dia = datetime.combine(data_filtro, time.max)
     funcionarios = db.query(models.Funcionario).order_by(models.Funcionario.nome).all()
     query_caixa = db.query(models.FluxoCaixa).options(
         joinedload(models.FluxoCaixa.funcionario)
     ).filter(models.FluxoCaixa.data_hora_registro.between(inicio_do_dia, fim_do_dia))
+
     if funcionario_id:
         query_caixa = query_caixa.filter(models.FluxoCaixa.funcionario_id == funcionario_id)
+
     registros_caixa = query_caixa.order_by(models.FluxoCaixa.data_hora_registro.asc()).all()
     funcionario_selecionado = next((f for f in funcionarios if f.id == funcionario_id), None)
+
     total_entradas = sum(r.valor for r in registros_caixa if r.tipo == 'Entrada')
     total_saidas = sum(r.valor for r in registros_caixa if r.tipo == 'Saída')
     saldo_do_dia = total_entradas - total_saidas
+
     context = {
         "request": request, "user": user, "registros": registros_caixa,
         "data_filtro_str": data_filtro.isoformat(),
