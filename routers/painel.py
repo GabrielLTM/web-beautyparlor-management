@@ -1027,37 +1027,54 @@ async def get_pagina_logs(
     request: Request, db: Session = Depends(get_db), user: dict = Depends(get_current_user)
 ):
     """
-    Exibe a página de auditoria com o histórico de todas as alterações.
+       Exibe a página de auditoria com o histórico de todas as alterações.
 
-    Esta rota é responsável por fornecer uma visão completa e transparente de
-    todas as alterações significativas registadas no sistema. A sua principal
-    tarefa é realizar uma consulta complexa e eficiente para agregar todos os
-    dados necessários:
+       Esta rota é responsável por fornecer uma visão completa e transparente de
+       todas as alterações significativas registadas no sistema. A sua principal
+       tarefa é realizar uma consulta complexa e eficiente para agregar todos os
+       dados necessários:
 
-    1.  Busca todos os registros de 'LogAlteracao'.
-    2.  Utiliza 'eager loading' (joinedload) de forma aninhada para carregar
-        eficientemente os dados do funcionário que fez a alteração do
-        agendamento afetado, e também do serviço e cliente relacionados
-        a esse agendamento.
-    3.  Realiza um ajuste de fuso horário para exibir a hora local.
+       1.  Busca todos os registros de 'LogAlteracao'.
+       2.  Utiliza 'eager loading' (joinedload) de forma aninhada para carregar
+           eficientemente os dados do funcionário que fez a alteração do
+           agendamento afetado, e também do serviço e cliente relacionados
+           a esse agendamento.
+       3.  Realiza um ajuste de fuso horário para exibir a hora local.
 
-    Args:
-        request (Request): O objeto de requisição do FastAPI.
-        db (Session): A sessão do banco de dados, injetada como dependência.
-        user (dict): Os dados do usuário logado, obtidos da sessão.
+       Args:
+           request (Request): O objeto de requisição do FastAPI.
+           db (Session): A sessão do banco de dados, injetada como dependência.
+           user (dict): Os dados do usuário logado, obtidos da sessão.
 
-    Returns:
-        TemplateResponse: Uma resposta HTML que renderiza a página 'logs.html',
-        populada com a lista completa de registros de auditoria.
-    """
-    # ... (código da função get_pagina_logs)
+       Returns:
+           TemplateResponse: Uma resposta HTML que renderiza a página 'logs.html',
+           populada com a lista completa de registros de auditoria.
+       """
     logs = db.query(models.LogAlteracao).options(
         joinedload(models.LogAlteracao.funcionario),
         joinedload(models.LogAlteracao.agendamento).joinedload(models.Agendamento.servico),
         joinedload(models.LogAlteracao.agendamento).joinedload(models.Agendamento.cliente)
     ).order_by(models.LogAlteracao.data_hora.desc()).all()
+
     for log in logs:
         log.data_hora_local = log.data_hora - timedelta(hours=3)
+        campo = log.campo_alterado
+        valor_novo = log.valor_novo
+
+        if campo == "status" and valor_novo == "Concluído":
+            log.acao_amigavel = "Finalizou Serviço"
+        elif campo == "status" and valor_novo == "Cancelado":
+            log.acao_amigavel = "Cancelou Agendamento"
+        elif campo == "preco_final":
+            log.acao_amigavel = "Alterou Preço"
+        elif campo == "data_hora":
+            log.acao_amigavel = "Reagendou Serviço"
+        elif campo == "duracao_efetiva_minutos":
+            log.acao_amigavel = "Ajustou Duração"
+        else:
+            # Um valor padrão para campos não mapeados, para não quebrar a visualização
+            log.acao_amigavel = f"Alterou '{campo.replace('_', ' ').title()}'"
+
     context = {"request": request, "logs": logs, "user": user}
     return templates.TemplateResponse("logs.html", context)
 

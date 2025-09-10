@@ -13,7 +13,7 @@
                 <th>Funcionário</th>
                 <th>Cliente</th>
                 <th>Serviço</th>
-                <th>Campo Alterado</th>
+                <th>Ação Realizada</th>
                 <th>Valor Antigo</th>
                 <th>Valor Novo</th>
             </tr>
@@ -25,7 +25,7 @@
                     <td>{{ log.funcionario.nome if log.funcionario else 'N/A' }}</td>
                     <td>{{ log.agendamento.cliente.nome if log.agendamento and log.agendamento.cliente else 'N/A' }}</td>
                     <td>{{ log.agendamento.servico.nome if log.agendamento and log.agendamento.servico else 'N/A' }}</td>
-                    <td>{{ log.campo_alterado }}</td>
+                    <td class="fw-bold">{{ log.acao_amigavel }}</td>
                     <td>{{ log.valor_antigo }}</td>
                     <td>{{ log.valor_novo }}</td>
                 </tr>
