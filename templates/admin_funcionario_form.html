@@ -14,7 +14,7 @@
     </div>
 {% endif %}
 
-<form action="{{ action_url }}" method="post" class="mt-4">
+<form id="formFuncionario" action="{{ action_url }}" method="post" class="mt-4">
     <div class="mb-3">
         <label for="nome" class="form-label">Nome:</label>
         <input type="text" id="nome" name="nome" class="form-control"
@@ -36,12 +36,32 @@
             </option>
         </select>
     </div>
+
     <div class="mb-3">
         <label for="senha" class="form-label">
             {{ 'Nova Senha (deixe em branco para não alterar)' if funcionario else 'Senha:' }}
         </label>
-        <input type="password" id="senha" name="senha" class="form-control"
-               {% if not funcionario %}required{% endif %}>
+        <div class="input-group">
+            <input type="password" id="senha" name="senha" class="form-control"
+                   {% if not funcionario %}required{% endif %}>
+            <button class="btn btn-outline-secondary" type="button" id="toggleSenha">
+                <i class="bi bi-eye"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label for="confirmar_senha" class="form-label">Confirmar Senha:</label>
+        <div class="input-group">
+            <input type="password" id="confirmar_senha" name="confirmar_senha" class="form-control"
+                   {% if not funcionario %}required{% endif %}>
+            <button class="btn btn-outline-secondary" type="button" id="toggleConfirmarSenha">
+                <i class="bi bi-eye"></i>
+            </button>
+        </div>
+        <div class="d-none text-danger mt-2" id="senhaError">
+            As senhas não coincidem.
+        </div>
     </div>
 
     <button type="submit" class="btn btn-primary">
@@ -49,4 +69,55 @@
     </button>
 </form>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('formFuncionario');
+        const senhaInput = document.getElementById('senha');
+        const confirmarSenhaInput = document.getElementById('confirmar_senha');
+        const senhaError = document.getElementById('senhaError');
+
+        // Lógica de validação no momento do envio
+        form.addEventListener('submit', function (event) {
+            // Remove erros antigos
+            senhaInput.classList.remove('is-invalid');
+            confirmarSenhaInput.classList.remove('is-invalid');
+            senhaError.classList.add('d-none');
+
+            // Valida apenas se o campo de senha foi preenchido (importante para o modo de edição)
+            if (senhaInput.value || confirmarSenhaInput.value) {
+                if (senhaInput.value !== confirmarSenhaInput.value) {
+                    event.preventDefault(); // Impede o envio do formulário
+                    senhaInput.classList.add('is-invalid');
+                    confirmarSenhaInput.classList.add('is-invalid');
+                    senhaError.classList.remove('d-none');
+                }
+            }
+        });
+
+        // Lógica para os botões de visualizar senha
+        function setupToggle(inputId, toggleId) {
+            const input = document.getElementById(inputId);
+            const toggle = document.getElementById(toggleId);
+            const icon = toggle.querySelector('i');
+
+            toggle.addEventListener('click', function () {
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.classList.remove('bi-eye');
+                    icon.classList.add('bi-eye-slash');
+                } else {
+                    input.type = 'password';
+                    icon.classList.remove('bi-eye-slash');
+                    icon.classList.add('bi-eye');
+                }
+            });
+        }
+
+        setupToggle('senha', 'toggleSenha');
+        setupToggle('confirmar_senha', 'toggleConfirmarSenha');
+    });
+</script>
 {% endblock %}
