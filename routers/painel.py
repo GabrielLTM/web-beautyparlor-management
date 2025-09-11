@@ -14,6 +14,7 @@ import math
 import models
 from dependencies import get_db, get_current_user
 from collections import defaultdict
+from security import verificar_senha, gerar_hash_senha
 
 router = APIRouter(
     prefix="/painel",  # Todas as rotas aqui começarão com /painel
@@ -1019,6 +1020,93 @@ async def cancelar_bloqueio(
     db.commit()
     return RedirectResponse(url=f"/painel/funcionarios/{funcionario_id}?data={data_bloqueio.isoformat()}",
                             status_code=status.HTTP_303_SEE_OTHER)
+
+
+
+@router.get("/alterar-senha", response_class=HTMLResponse)
+async def get_pagina_alterar_senha(
+    request: Request,
+    user: dict = Depends(get_current_user),
+    success: str | None = Query(default=None),
+    error: str | None = Query(default=None)
+):
+    """
+    Exibe a página com o formulário para o usuário alterar a sua própria senha.
+
+    Args:
+        request (Request): O objeto de requisição do FastAPI.
+        user (dict): Os dados do usuário logado.
+        success (str, optional): Mensagem de sucesso a ser exibida.
+        error (str, optional): Mensagem de erro a ser exibida.
+
+    Returns:
+        TemplateResponse: Renderiza a página 'alterar_senha.html'.
+    """
+    context = {
+        "request": request,
+        "user": user,
+        "success": success,
+        "error": error
+    }
+    return templates.TemplateResponse("alterar_senha.html", context)
+
+
+
+@router.post("/alterar-senha")
+async def handle_form_alterar_senha(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+    senha_atual: str = Form(...),
+    nova_senha: str = Form(...),
+    confirmar_nova_senha: str = Form(...)
+):
+    """
+    Processa a alteração de senha do usuário logado.
+
+    Realiza uma série de validações de segurança:
+    1. Verifica se a nova senha e a sua confirmação são idênticas.
+    2. Verifica se a "senha atual" fornecida corresponde à senha armazenada no banco de dados.
+
+    Se as validações passarem, a nova senha é 'hasheada' e atualizada no banco.
+
+    Args:
+        request (Request): O objeto de requisição do FastAPI.
+        db (Session): A sessão do banco de dados.
+        user (dict): Os dados do usuário logado.
+        senha_atual (str): A senha atual do usuário, para verificação.
+        nova_senha (str): A nova senha desejada.
+        confirmar_nova_senha (str): A confirmação da nova senha.
+
+    Returns:
+        RedirectResponse: Redireciona de volta para a página de alterar senha
+                          com uma mensagem de sucesso ou erro.
+    """
+    # Validação do frontend já verifica isto, mas é uma boa prática re-validar no backend.
+    if nova_senha != confirmar_nova_senha:
+        return RedirectResponse(
+            url="/painel/alterar-senha?error=A nova senha e a confirmação não coincidem.",
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+
+    db_funcionario = db.query(models.Funcionario).filter(models.Funcionario.id == user['id']).first()
+
+    # Validação de segurança crucial: verificar se a senha atual está correta
+    if not verificar_senha(senha_atual, db_funcionario.senha_hash):
+        return RedirectResponse(
+            url="/painel/alterar-senha?error=A senha atual está incorreta.",
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+
+    # Se tudo estiver correto, atualiza a senha
+    novo_hash_senha = gerar_hash_senha(nova_senha)
+    db_funcionario.senha_hash = novo_hash_senha
+    db.commit()
+
+    return RedirectResponse(
+        url="/painel/alterar-senha?success=Senha alterada com sucesso!",
+        status_code=status.HTTP_303_SEE_OTHER
+    )
 
 
 

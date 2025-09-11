@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Alterar Minha Senha - Bella Estética{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <h1>Alterar Minha Senha</h1>
+        <p class="lead">Para sua segurança, informe a sua senha atual antes de definir uma nova.</p>
+
+        {% if success %}
+            <div class="alert alert-success mt-3" role="alert">
+                {{ success }}
+            </div>
+        {% endif %}
+        {% if error %}
+            <div class="alert alert-danger mt-3" role="alert">
+                {{ error }}
+            </div>
+        {% endif %}
+
+        <form id="formAlterarSenha" method="post" class="mt-4">
+            <div class="mb-3">
+                <label for="senha_atual" class="form-label">Senha Atual:</label>
+                <div class="input-group">
+                    <input type="password" id="senha_atual" name="senha_atual" class="form-control" required>
+                    <button class="btn btn-outline-secondary" type="button" id="toggleSenhaAtual">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="mb-3">
+                <label for="nova_senha" class="form-label">Nova Senha:</label>
+                <div class="input-group">
+                    <input type="password" id="nova_senha" name="nova_senha" class="form-control" required>
+                    <button class="btn btn-outline-secondary" type="button" id="toggleNovaSenha">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="confirmar_nova_senha" class="form-label">Confirmar Nova Senha:</label>
+                <div class="input-group">
+                    <input type="password" id="confirmar_nova_senha" name="confirmar_nova_senha" class="form-control" required>
+                    <button class="btn btn-outline-secondary" type="button" id="toggleConfirmarNovaSenha">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+                <div class="d-none text-danger mt-2" id="senhaError">
+                    As senhas não coincidem.
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary mt-3">Salvar Nova Senha</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('formAlterarSenha');
+        const novaSenhaInput = document.getElementById('nova_senha');
+        const confirmarNovaSenhaInput = document.getElementById('confirmar_nova_senha');
+        const senhaError = document.getElementById('senhaError');
+
+        // Lógica de validação no momento do envio
+        form.addEventListener('submit', function (event) {
+            novaSenhaInput.classList.remove('is-invalid');
+            confirmarNovaSenhaInput.classList.remove('is-invalid');
+            senhaError.classList.add('d-none');
+
+            if (novaSenhaInput.value !== confirmarNovaSenhaInput.value) {
+                event.preventDefault(); // Impede o envio do formulário
+                novaSenhaInput.classList.add('is-invalid');
+                confirmarNovaSenhaInput.classList.add('is-invalid');
+                senhaError.classList.remove('d-none');
+            }
+        });
+
+        // Lógica para os botões de visualizar senha
+        function setupToggle(inputId, toggleId) {
+            const input = document.getElementById(inputId);
+            const toggle = document.getElementById(toggleId);
+            const icon = toggle.querySelector('i');
+
+            toggle.addEventListener('click', function () {
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.classList.remove('bi-eye');
+                    icon.classList.add('bi-eye-slash');
+                } else {
+                    input.type = 'password';
+                    icon.classList.remove('bi-eye-slash');
+                    icon.classList.add('bi-eye');
+                }
+            });
+        }
+
+        setupToggle('senha_atual', 'toggleSenhaAtual');
+        setupToggle('nova_senha', 'toggleNovaSenha');
+        setupToggle('confirmar_nova_senha', 'toggleConfirmarNovaSenha');
+    });
+</script>
+{% endblock %}
