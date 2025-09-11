@@ -6,7 +6,7 @@
 
 <a href="/painel/admin" class="btn btn-outline-secondary mb-3">&larr; Voltar para Administração</a>
 <h1>Contas Correntes dos Funcionários</h1>
-<p class="lead">Gira os saldos e registe pagamentos dos funcionários relacionados a comissões de permuta.</p>
+<p class="lead">Gira os saldos e registre pagamentos dos funcionários relacionados a comissões de permuta.</p>
 
 <div class="card mt-4">
     <div class="card-body">
@@ -27,7 +27,7 @@
                             {{ "%.2f"|format(f.saldo_conta_corrente|float) }}
                         </td>
                         <td>
-                            <a href="/painel/admin/contas-correntes/{{ f.id }}" class="btn btn-sm btn-info">Ver Extrato e Registar Pagamento</a>
+                            <a href="/painel/admin/contas-correntes/{{ f.id }}" class="btn btn-sm btn-info">Ver Extrato e Registrar Pagamento</a>
                         </td>
                     </tr>
                 {% endfor %}

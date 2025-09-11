@@ -9,27 +9,47 @@
 
 {% if success %}
     <div class="alert alert-success" role="alert">
-        Pagamento registado com sucesso!
+        Transação registrada com sucesso!
     </div>
 {% endif %}
 
 <div class="row mt-4 g-5">
     <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <strong>Registar Pagamento do Funcionário</strong>
-            </div>
-            <div class="card-body">
+        <ul class="nav nav-tabs" id="transacaoTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="credito-tab" data-bs-toggle="tab" data-bs-target="#credito-tab-pane" type="button" role="tab" aria-controls="credito-tab-pane" aria-selected="true">Registar Pagamento (Crédito)</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="debito-tab" data-bs-toggle="tab" data-bs-target="#debito-tab-pane" type="button" role="tab" aria-controls="debito-tab-pane" aria-selected="false">Registar Débito</button>
+            </li>
+        </ul>
+        <div class="tab-content border border-top-0 p-3" id="transacaoTabContent">
+            <div class="tab-pane fade show active" id="credito-tab-pane" role="tabpanel" aria-labelledby="credito-tab" tabindex="0">
+                <p class="form-text">Use para registrar um pagamento feito pelo funcionário ao salão (ex: acerto de permutas).</p>
                 <form action="/painel/admin/contas-correntes/{{ funcionario.id }}/pagamento" method="post">
                     <div class="mb-3">
-                        <label for="valor" class="form-label">Valor Pago (R$):</label>
-                        <input type="number" step="0.01" id="valor" name="valor" class="form-control" required placeholder="Ex: 50.00">
+                        <label for="valor_credito" class="form-label">Valor Pago (R$):</label>
+                        <input type="number" step="0.01" id="valor_credito" name="valor" class="form-control" required placeholder="Ex: 50.00">
                     </div>
                     <div class="mb-3">
-                        <label for="descricao" class="form-label">Descrição / Referência:</label>
-                        <input type="text" id="descricao" name="descricao" class="form-control" required placeholder="Ex: Acerto da semana">
+                        <label for="descricao_credito" class="form-label">Descrição / Referência:</label>
+                        <input type="text" id="descricao_credito" name="descricao" class="form-control" required placeholder="Ex: Acerto da semana">
                     </div>
-                    <button type="submit" class="btn btn-success w-100">Registar Pagamento</button>
+                    <button type="submit" class="btn btn-success w-100">Registrar Pagamento</button>
+                </form>
+            </div>
+            <div class="tab-pane fade" id="debito-tab-pane" role="tabpanel" aria-labelledby="debito-tab" tabindex="0">
+                <p class="form-text">Use para registrar um valor que o salão adiantou ao funcionário (ex: adiantamento, permuta especial).</p>
+                <form action="/painel/admin/contas-correntes/{{ funcionario.id }}/debito" method="post">
+                    <div class="mb-3">
+                        <label for="valor_debito" class="form-label">Valor a Debitar (R$):</label>
+                        <input type="number" step="0.01" id="valor_debito" name="valor" class="form-control" required placeholder="Ex: 100.00">
+                    </div>
+                    <div class="mb-3">
+                        <label for="descricao_debito" class="form-label">Descrição / Motivo:</label>
+                        <input type="text" id="descricao_debito" name="descricao" class="form-control" required placeholder="Ex: Adiantamento salarial">
+                    </div>
+                    <button type="submit" class="btn btn-danger w-100">Registrar Débito</button>
                 </form>
             </div>
         </div>

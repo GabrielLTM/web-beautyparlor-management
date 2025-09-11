@@ -142,7 +142,7 @@ async def get_pagina_fluxo_caixa(
     Exibe a página de Fluxo de Caixa, detalhando as transações do dia.
 
     Esta rota serve como o principal relatório financeiro diário para o administrador.
-    A sua lógica é flexível, permitindo a filtragem dos registos de caixa por:
+    A sua lógica é flexível, permitindo a filtragem dos registros de caixa por:
 
     1.  Uma data específica (assumindo o dia de hoje como padrão).
     2.  Um funcionário específico.
@@ -1010,6 +1010,55 @@ async def handle_form_pagamento_conta_corrente(
     db.add(nova_transacao)
     funcionario.saldo_conta_corrente += valor
     db.commit()
+    return RedirectResponse(
+        url=f"/painel/admin/contas-correntes/{funcionario_id}?success=true",
+        status_code=status.HTTP_303_SEE_OTHER
+    )
+
+
+@router.post("/contas-correntes/{funcionario_id}/debito")
+async def handle_form_debito_conta_corrente(
+        funcionario_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_admin_user),
+        valor: Decimal = Form(...), descricao: str = Form(...)
+):
+    """
+    Registra um débito manual na conta corrente de um funcionário.
+
+    Esta rota POST é usada para registrar valores que o salão adiantou ou
+    precisa cobrar do funcionário (ex: adiantamentos, permutas especiais).
+    Ela executa duas operações financeiras:
+
+    1.  Cria um registro de 'Débito' no extrato da conta corrente do funcionário.
+    2.  Atualiza o saldo geral do funcionário, subtraindo o valor do débito.
+
+    Args:
+        funcionario_id (int): O ID do funcionário que está recebendo o débito.
+        db (Session): A sessão do banco de dados.
+        user (dict): Os dados do administrador logado que está registrando o débito.
+        valor (Decimal): O valor do débito, vindo do formulário.
+        descricao (str): Uma descrição para a transação, vindo do formulário.
+
+    Returns:
+        RedirectResponse: Redireciona o administrador de volta para a página do extrato
+                          do funcionário, com uma mensagem de sucesso.
+    """
+    funcionario = db.query(models.Funcionario).filter(models.Funcionario.id == funcionario_id).first()
+    if not funcionario:
+        raise HTTPException(status_code=404, detail="Funcionário não encontrado")
+
+    nova_transacao = models.TransacaoContaCorrente(
+        funcionario_id=funcionario_id,
+        admin_id=user['id'],
+        tipo="Débito",
+        valor=valor,
+        descricao=descricao
+    )
+    db.add(nova_transacao)
+
+    funcionario.saldo_conta_corrente -= valor
+
+    db.commit()
+
     return RedirectResponse(
         url=f"/painel/admin/contas-correntes/{funcionario_id}?success=true",
         status_code=status.HTTP_303_SEE_OTHER
