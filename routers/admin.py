@@ -868,6 +868,35 @@ async def handle_form_excluir_servico(
     return RedirectResponse(url="/painel/admin/servicos", status_code=status.HTTP_303_SEE_OTHER)
 
 
+@router.post("/servicos/{servico_id}/reativar")
+async def handle_form_reativar_servico(
+    servico_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_admin_user)
+):
+    """
+    Processa a reativação de um serviço previamente desativado.
+
+    Esta rota POST altera o status do serviço de inativo para ativo
+    (`is_ativo = True`), tornando-o novamente disponível para novos agendamentos
+    no sistema.
+
+    Args:
+        servico_id (int): O ID do serviço a ser reativado.
+        db (Session): A sessão do banco de dados, injetada como dependência.
+        user (dict): Os dados do usuário administrador logado.
+
+    Returns:
+        RedirectResponse: Redireciona o administrador de volta para a página de gestão de serviços.
+    """
+    db_servico = db.query(models.Servico).filter(models.Servico.id == servico_id).first()
+    if not db_servico:
+        raise HTTPException(status_code=404, detail="Serviço não encontrado")
+
+    db_servico.is_ativo = True
+    db.commit()
+
+    return RedirectResponse(url="/painel/admin/servicos", status_code=status.HTTP_303_SEE_OTHER)
+
+
 ######################################## MÓDULO DE GESTÃO DAS CONTAS CORRENTES ########################################
 
 
