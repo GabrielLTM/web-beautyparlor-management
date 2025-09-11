@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi.templating import Jinja2Templates
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
-from typing import List
+from typing import List, Optional
 from sqlalchemy import func, or_
 import models
 from security import gerar_hash_senha
@@ -795,12 +795,12 @@ async def get_pagina_editar_servico(
     return templates.TemplateResponse("admin_servico_form.html", context)
 
 
-
 @router.post("/servicos/{servico_id}/editar")
 async def handle_form_editar_servico(
-    servico_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_admin_user),
-    nome: str = Form(...), duracao_padrao_minutos: int = Form(...),
-    preco_minimo: Decimal = Form(...), categoria_id: int = Form(...)
+        servico_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_admin_user),
+        nome: str = Form(...), duracao_padrao_minutos: int = Form(...),
+        preco_minimo: Decimal = Form(...),
+        categoria_id_str: Optional[str] = Form(None, alias="categoria_id")
 ):
     """
     Processa os dados do formulário para atualizar um serviço existente.
@@ -816,21 +816,25 @@ async def handle_form_editar_servico(
         nome (str): O novo nome do serviço.
         duracao_padrao_minutos (int): A nova duração padrão do serviço.
         preco_minimo (Decimal): O novo preço mínimo do serviço.
-        categoria_id (int): O novo ID da categoria associada ao serviço.
+        categoria_id (Optional[int]): O novo ID da categoria associada ao serviço.
 
     Returns:
         RedirectResponse: Redireciona o administrador de volta para a página de
                           gestão de serviços após a atualização.
     """
-    # ... (código da função handle_form_editar_servico)
+    categoria_id = int(categoria_id_str) if categoria_id_str else None
+
     db_servico = db.query(models.Servico).filter(models.Servico.id == servico_id).first()
     if not db_servico:
         raise HTTPException(status_code=404, detail="Serviço não encontrado")
+
     db_servico.nome = nome
     db_servico.duracao_padrao_minutos = duracao_padrao_minutos
     db_servico.preco_minimo = preco_minimo
     db_servico.categoria_id = categoria_id
+
     db.commit()
+
     return RedirectResponse(url="/painel/admin/servicos", status_code=status.HTTP_303_SEE_OTHER)
 
 
