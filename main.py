@@ -9,11 +9,13 @@ Este módulo é o coração da aplicação. As suas responsabilidades são:
 4.  Configurar middlewares globais, como o de gestão de sessões.
 5.  Definir handlers de exceção globais, como o de redirecionamento para login.
 6.  Incluir e agregar todos os routers modulares (autenticacao, painel, admin) para construir a API completa.
+7.  Configurar o serviço de ficheiros estáticos para exibir imagens.
 """
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from starlette import status
 from starlette.middleware.sessions import SessionMiddleware
+from fastapi.staticfiles import StaticFiles
 import models
 from database import engine
 import os
@@ -35,6 +37,10 @@ app = FastAPI(
     description="API para gerenciar agendamentos, funcionários e serviços."
 )
 
+# Esta linha "monta" a pasta 'static' na URL '/static'.
+# Qualquer ficheiro dentro da pasta 'static' do seu projeto estará acessível através de um URL que comece com /static.
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 @app.exception_handler(NotAuthenticatedException)
 async def auth_exception_handler(request: Request, exc: NotAuthenticatedException):
@@ -51,15 +57,10 @@ async def auth_exception_handler(request: Request, exc: NotAuthenticatedExceptio
     return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
 
 
-# Adiciona o middleware de sessão à aplicação. Isto permite que a aplicação
-# armazene dados (como a identidade do utilizador logado) entre requisições.
-# A 'secret_key' é lida de forma segura a partir das variáveis de ambiente.
+# Adiciona o middleware de sessão à aplicação.
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"))
 
 # Inclui os routers modulares na aplicação principal.
-# Esta é a base da nossa arquitetura organizada: cada router traz consigo
-# o seu próprio conjunto de rotas, que são agregadas aqui.
 app.include_router(autenticacao.router)
 app.include_router(painel.router)
 app.include_router(admin.router)
-

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Gerir Produtos - Bella Estética{% endblock %}
+
+{% block styles %}
+<style>
+    .product-img {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: .25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="/painel/admin" class="btn btn-outline-secondary mb-3">&larr; Voltar para Administração</a>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Gerenciar Produtos</h1>
+    <a href="/painel/admin/produtos/novo" class="btn btn-primary">Adicionar Novo Produto</a>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th style="width: 80px;">Foto</th>
+                    <th>Nome do Produto</th>
+                    <th>Valor (R$)</th>
+                    <th>Status</th>
+                    <th class="text-end">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if produtos %}
+                    {% for produto in produtos %}
+                        <tr>
+                            <td>
+                                {% if produto.caminho_foto %}
+                                    <img src="/static/uploads/products/{{ produto.caminho_foto }}" alt="{{ produto.nome }}" class="product-img">
+                                {% else %}
+                                    <div class="product-img bg-light d-flex align-items-center justify-content-center">
+                                        <i class="bi bi-camera fs-4 text-muted"></i>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td>{{ produto.nome }}</td>
+                            <td>{{ "%.2f"|format(produto.valor|float) }}</td>
+                            <td>
+                                {% if produto.is_ativo %}
+                                    <span class="badge bg-success">Ativo</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inativo</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="/painel/admin/produtos/{{ produto.id }}/editar" class="btn btn-sm btn-warning">Editar</a>
+
+                                <form action="/painel/admin/produtos/{{ produto.id }}/toggle-status" method="post" class="d-inline ms-1">
+                                    {% if produto.is_ativo %}
+                                        <button type="submit" class="btn btn-sm btn-danger">Desativar</button>
+                                    {% else %}
+                                        <button type="submit" class="btn btn-sm btn-success">Reativar</button>
+                                    {% endif %}
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4">Nenhum produto cadastrado.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

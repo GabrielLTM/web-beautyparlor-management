@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar Produto' if produto else 'Adicionar Novo Produto' }} - Bella Estética{% endblock %}
+
+{% block styles %}
+<style>
+    .current-product-img {
+        max-width: 150px;
+        max-height: 150px;
+        object-fit: cover;
+        border-radius: .25rem;
+        border: 1px solid #dee2e6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="/painel/admin/produtos" class="btn btn-outline-secondary mb-3">&larr; Voltar para a lista</a>
+
+<h1>{{ 'Editar Produto' if produto else 'Adicionar Novo Produto' }}</h1>
+
+{% if error %}
+    <div class="alert alert-danger mt-3" role="alert">
+        {{ error }}
+    </div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="mt-4">
+    <div class="card">
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="nome" class="form-label">Nome do Produto:</label>
+                <input type="text" id="nome" name="nome" class="form-control" value="{{ produto.nome if produto else '' }}" required>
+            </div>
+            <div class="mb-3">
+                <label for="valor" class="form-label">Valor (R$):</label>
+                <input type="number" step="0.01" id="valor" name="valor" class="form-control" value="{{ produto.valor if produto else '' }}" required placeholder="Ex: 45.50">
+            </div>
+            <div class="mb-3">
+                <label for="foto" class="form-label">
+                    {% if produto and produto.caminho_foto %}
+                        Alterar Foto do Produto:
+                    {% else %}
+                        Foto do Produto:
+                    {% endif %}
+                </label>
+                <input type="file" id="foto" name="foto" class="form-control" accept="image/*">
+                <div class="form-text">
+                    {% if produto %}
+                        Deixe em branco para manter a foto atual.
+                    {% else %}
+                        O envio de uma foto é opcional.
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if produto and produto.caminho_foto %}
+                <div class="mb-3">
+                    <label class="form-label">Foto Atual:</label><br>
+                    <img src="/static/uploads/products/{{ produto.caminho_foto }}" alt="{{ produto.nome }}" class="current-product-img">
+                </div>
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary mt-3">
+                {{ 'Salvar Alterações' if produto else 'Adicionar Produto' }}
+            </button>
+        </div>
+    </div>
+</form>
+{% endblock %}

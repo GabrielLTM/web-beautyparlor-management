@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, Request, Form, Query, HTTPException
+from fastapi import APIRouter, Depends, Request, Form, Query, HTTPException, UploadFile, File
+import shutil
+import uuid
 from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette import status
 from sqlalchemy.orm import Session, joinedload
@@ -1147,3 +1149,277 @@ async def handle_form_configuracoes(
     salvar_config("COMISSAO_SALAO_PERMUTA_PERC", str(comissao_permuta))
     db.commit()
     return RedirectResponse(url="/painel/admin/configuracoes?success=true", status_code=status.HTTP_303_SEE_OTHER)
+
+
+######################################## MÓDULO DE GESTÃO DE PRODUTOS ########################################
+
+
+@router.get("/produtos", response_class=HTMLResponse)
+async def get_pagina_gerir_produtos(
+    request: Request, db: Session = Depends(get_db), user: dict = Depends(get_current_admin_user)
+):
+    """
+    Exibe a página principal para a gestão de produtos.
+
+    Esta rota serve como o "hub" para todas as operações administrativas
+    relacionadas aos produtos, como criar, editar e ativar/desativar.
+
+    A função busca e exibe uma lista de TODOS os produtos cadastrados,
+    incluindo os inativos, para que o administrador tenha uma visão completa.
+
+    Args:
+        request (Request): O objeto de requisição do FastAPI.
+        db (Session): A sessão do banco de dados.
+        user (dict): Os dados do usuário administrador logado.
+
+    Returns:
+        TemplateResponse: Uma resposta HTML que renderiza a página 'admin_produtos.html',
+                          populada com a lista de todos os produtos.
+    """
+    produtos = db.query(models.Produto).order_by(models.Produto.nome).all()
+    context = {"request": request, "user": user, "produtos": produtos}
+    return templates.TemplateResponse("admin_produtos.html", context)
+
+
+@router.get("/produtos/novo", response_class=HTMLResponse)
+async def get_pagina_novo_produto(
+    request: Request, user: dict = Depends(get_current_admin_user)
+):
+    """
+    Exibe o formulário para o cadastro de um novo produto.
+
+    Esta rota GET renderiza o template 'admin_produto_form.html' que será
+    reutilizado tanto para a criação quanto para a edição de produtos.
+    Ao passar 'produto=None' para o contexto, o template entende que está
+    no modo de "criação".
+
+    Args:
+        request (Request): O objeto de requisição do FastAPI.
+        user (dict): Os dados do usuário administrador logado.
+
+    Returns:
+        TemplateResponse: Uma resposta HTML que renderiza a página 'admin_produto_form.html'.
+    """
+    context = {"request": request, "user": user, "produto": None}
+    return templates.TemplateResponse("admin_produto_form.html", context)
+
+
+@router.post("/produtos/novo")
+async def handle_form_novo_produto(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_admin_user),
+    nome: str = Form(...),
+    valor: Decimal = Form(...),
+    foto: Optional[UploadFile] = File(None)
+):
+    """
+    Processa os dados do formulário para criar um novo produto, incluindo o upload da foto.
+
+    Realiza validações de duplicidade de nome, formato de ficheiro e tamanho do
+    ficheiro antes de salvar o produto e a sua imagem no sistema.
+
+    Args:
+        request (Request): O objeto de requisição do FastAPI.
+        db (Session): A sessão do banco de dados.
+        user (dict): Os dados do administrador logado.
+        nome (str): O nome do produto.
+        valor (Decimal): O preço do produto.
+        foto (Optional[UploadFile]): O ficheiro da foto do produto (opcional).
+
+    Returns:
+        RedirectResponse: Redireciona para a página de gestão de produtos.
+        TemplateResponse: Re-renderiza o formulário com uma mensagem de erro em caso de falha na validação.
+    """
+    # Validação para evitar produtos com nomes duplicados
+    produto_existente = db.query(models.Produto).filter(func.lower(models.Produto.nome) == func.lower(nome)).first()
+    if produto_existente:
+        context = {
+            "request": request,
+            "user": user,
+            "produto": None,
+            "error": "Já existe um produto com este nome."
+        }
+        return templates.TemplateResponse("admin_produto_form.html", context, status_code=400)
+
+    caminho_foto_final = None
+    if foto and foto.filename:
+
+        # 1. Define as regras de validação
+        ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+        MAX_FILE_SIZE_MB = 2
+        MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
+        # 2. Valida a extensão do ficheiro
+        extensao = foto.filename.split(".")[-1].lower()
+        if extensao not in ALLOWED_EXTENSIONS:
+            error_msg = f"Formato de ficheiro não permitido. Use: {', '.join(ALLOWED_EXTENSIONS)}"
+            context = {"request": request, "user": user, "produto": None, "error": error_msg}
+            return templates.TemplateResponse("admin_produto_form.html", context, status_code=400)
+
+        # 3. Valida o tamanho do ficheiro
+        contents = await foto.read()
+        if len(contents) > MAX_FILE_SIZE_BYTES:
+            error_msg = f"O ficheiro é muito grande. O tamanho máximo é de {MAX_FILE_SIZE_MB} MB."
+            context = {"request": request, "user": user, "produto": None, "error": error_msg}
+            return templates.TemplateResponse("admin_produto_form.html", context, status_code=400)
+
+        # 4. Se a validação passar, prossegue para salvar o ficheiro
+        pasta_uploads = Path(BASE_DIR, "static", "uploads", "products")
+        pasta_uploads.mkdir(parents=True, exist_ok=True)
+
+        nome_ficheiro_unico = f"{uuid.uuid4()}.{extensao}"
+        caminho_foto_final = nome_ficheiro_unico
+        caminho_salvar = pasta_uploads / nome_ficheiro_unico
+
+        with open(caminho_salvar, "wb") as buffer:
+            buffer.write(contents)
+
+    # Cria a nova instância do produto no banco de dados
+    novo_produto = models.Produto(
+        nome=nome,
+        valor=valor,
+        caminho_foto=caminho_foto_final
+    )
+    db.add(novo_produto)
+    db.commit()
+
+    return RedirectResponse(url="/painel/admin/produtos", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.get("/produtos/{produto_id}/editar", response_class=HTMLResponse)
+async def get_pagina_editar_produto(
+    produto_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_admin_user)
+):
+    """
+    Exibe o formulário pré-preenchido para editar um produto existente.
+
+    Esta rota GET busca um produto específico pelo seu ID e reutiliza o
+    template 'admin_produto_form.html' para exibir os seus dados.
+    Ao passar o objeto 'produto' para o contexto, o template entende que
+    está no modo de "edição".
+
+    Args:
+        produto_id (int): O ID do produto a ser editado.
+        request (Request): O objeto de requisição do FastAPI.
+        db (Session): A sessão do banco de dados.
+        user (dict): Os dados do administrador logado.
+
+    Returns:
+        TemplateResponse: Renderiza a página 'admin_produto_form.html' com os
+                          campos preenchidos com os dados do produto.
+    """
+    produto = db.query(models.Produto).filter(models.Produto.id == produto_id).first()
+    if not produto:
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
+
+    context = {"request": request, "user": user, "produto": produto}
+    return templates.TemplateResponse("admin_produto_form.html", context)
+
+@router.post("/produtos/{produto_id}/editar")
+async def handle_form_editar_produto(
+    produto_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_admin_user),
+    nome: str = Form(...),
+    valor: Decimal = Form(...),
+    foto: Optional[UploadFile] = File(None)
+):
+    """
+    Processa os dados do formulário para atualizar um produto existente.
+
+    Args:
+        produto_id (int): O ID do produto a ser atualizado.
+        request (Request): O objeto de requisição do FastAPI.
+        db (Session): A sessão do banco de dados.
+        user (dict): Os dados do administrador logado.
+        nome (str): O novo nome do produto.
+        valor (Decimal): O novo preço do produto.
+        foto (Optional[UploadFile]): O novo ficheiro da foto do produto (opcional).
+
+    Returns:
+        RedirectResponse: Redireciona para a página de gestão de produtos.
+        TemplateResponse: Re-renderiza o formulário com uma mensagem de erro em caso de falha na validação.
+    """
+    db_produto = db.query(models.Produto).filter(models.Produto.id == produto_id).first()
+    if not db_produto:
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
+
+    produto_existente = db.query(models.Produto).filter(
+        func.lower(models.Produto.nome) == func.lower(nome),
+        models.Produto.id != produto_id
+    ).first()
+    if produto_existente:
+        context = {"request": request, "user": user, "produto": db_produto, "error": "Já existe outro produto com este nome."}
+        return templates.TemplateResponse("admin_produto_form.html", context, status_code=400)
+
+    if foto and foto.filename:
+        ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+        MAX_FILE_SIZE_MB = 2
+        MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
+        extensao = foto.filename.split(".")[-1].lower()
+        # ### LINHA CORRIGIDA ###
+        if extensao not in ALLOWED_EXTENSIONS:
+            error_msg = f"Formato de ficheiro não permitido. Use: {', '.join(ALLOWED_EXTENSIONS)}"
+            context = {"request": request, "user": user, "produto": db_produto, "error": error_msg}
+            return templates.TemplateResponse("admin_produto_form.html", context, status_code=400)
+
+        contents = await foto.read()
+        if len(contents) > MAX_FILE_SIZE_BYTES:
+            error_msg = f"O ficheiro é muito grande. O tamanho máximo é de {MAX_FILE_SIZE_MB} MB."
+            context = {"request": request, "user": user, "produto": db_produto, "error": error_msg}
+            return templates.TemplateResponse("admin_produto_form.html", context, status_code=400)
+
+        if db_produto.caminho_foto:
+            caminho_foto_antiga = Path(BASE_DIR, "static", "uploads", "products", db_produto.caminho_foto)
+            if caminho_foto_antiga.is_file():
+                caminho_foto_antiga.unlink()
+
+        pasta_uploads = Path(BASE_DIR, "static", "uploads", "products")
+        nome_ficheiro_unico = f"{uuid.uuid4()}.{extensao}"
+        caminho_salvar = pasta_uploads / nome_ficheiro_unico
+        with open(caminho_salvar, "wb") as buffer:
+            buffer.write(contents)
+        db_produto.caminho_foto = nome_ficheiro_unico
+
+    db_produto.nome = nome
+    db_produto.valor = valor
+    db.commit()
+
+    return RedirectResponse(url="/painel/admin/produtos", status_code=status.HTTP_303_SEE_OTHER)
+
+@router.post("/produtos/{produto_id}/toggle-status")
+async def toggle_status_produto(
+    produto_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_admin_user)
+):
+    """
+    Ativa ou desativa um produto no sistema.
+
+    Esta rota POST implementa a funcionalidade de "soft delete", onde um produto
+    não é permanentemente excluído, mas sim marcado como inativo. A função inverte
+    o valor booleano do campo 'is_ativo' do produto alvo.
+
+    Args:
+        produto_id (int): O ID do produto cujo status será alterado.
+        db (Session): A sessão do banco de dados.
+        user (dict): Os dados do administrador logado.
+
+    Returns:
+        RedirectResponse: Redireciona o administrador de volta para a página de
+                          gestão de produtos após a alteração.
+    """
+    db_produto = db.query(models.Produto).filter(models.Produto.id == produto_id).first()
+    if not db_produto:
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
+
+    db_produto.is_ativo = not db_produto.is_ativo
+    db.commit()
+
+    return RedirectResponse(url="/painel/admin/produtos", status_code=status.HTTP_303_SEE_OTHER)

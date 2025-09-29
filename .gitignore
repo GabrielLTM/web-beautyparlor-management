@@ -11,7 +11,10 @@ __pycache__/
 # Ficheiros de configuração de IDEs (como o PyCharm)
 .idea/
 
-# ### O MAIS IMPORTANTE ###
 # Ficheiro de variáveis de ambiente. Contém as suas senhas e segredos.
 # Este ficheiro NUNCA deve ir para o GitHub.
 .env
+
+# Uploads dos Utilizadores
+# Ignora todo o conteúdo dentro da pasta de uploads para não enviar dados de utilizadores para o repositório
+static/uploads/
