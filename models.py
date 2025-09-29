@@ -386,3 +386,32 @@ class FluxoCaixa(Base):
     funcionario = relationship("Funcionario")
     agendamento = relationship("Agendamento")
 
+
+class Produto(Base):
+    """
+        Representa um produto físico ou serviço vendido no salão.
+
+        Esta tabela armazena o catálogo de todos os produtos disponíveis para venda,
+        que não são agendáveis como os serviços principais. Cada produto possui
+        um nome, valor, e opcionalmente, uma imagem associada.
+
+        A coluna 'is_ativo' implementa a funcionalidade de "soft delete", permitindo
+        que um produto seja desativado do catálogo de vendas sem ser permanentemente
+        removido do banco de dados, preservando a integridade de registros
+        financeiros históricos.
+
+        Attributes:
+            id (int): A chave primária única para o produto.
+            nome (str): O nome do produto, que deve ser único.
+            valor (Numeric): O preço de venda do produto.
+            caminho_foto (str, optional): O nome do ficheiro da imagem do produto, armazenado no sistema de ficheiros.
+            is_ativo (bool): Um sinalizador que indica se o produto está disponível
+                             para venda (True) ou se foi desativado (False).
+        """
+    __tablename__ = "produtos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nome = Column(String, index=True, nullable=False, unique=True)
+    valor = Column(Numeric(10, 2), nullable=False)
+    caminho_foto = Column(String, nullable=True)
+    is_ativo = Column(Boolean, server_default='true', nullable=False)

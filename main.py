@@ -19,7 +19,6 @@ from database import engine
 import os
 from dotenv import load_dotenv
 
-# Importa os nossos novos routers
 from routers import autenticacao, painel, admin
 from dependencies import NotAuthenticatedException
 
