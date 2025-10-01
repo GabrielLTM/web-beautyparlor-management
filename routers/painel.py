@@ -341,7 +341,6 @@ async def handle_form_vender_produto(
         produto_ids: list[int] = Form(...),
         quantidades: list[int] = Form(...),
         metodo_pagamento: str = Form(...),
-        # ### LÓGICA DE COMISSÃO ATUALIZADA ###
         comissao_percentual: Optional[Decimal] = Form(None)
 ):
     """
@@ -390,7 +389,7 @@ async def handle_form_vender_produto(
                 funcionario_id=user['id'],
                 produto_id=produto.id,
                 quantidade=quantidade,
-                comissao_percentual=comissao_a_registrar  # Salva a percentagem correta
+                comissao_percentual=comissao_a_registrar
             )
             db.add(novo_registro_caixa)
 
