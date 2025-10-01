@@ -39,6 +39,16 @@
                 </div>
             </div>
 
+            <hr class="my-4">
+            <div class="mb-3">
+                <label for="comissao_maxima_produto" class="form-label">Comissão Máxima em Venda de Produtos (%):</label>
+                <input type="number" id="comissao_maxima_produto" name="comissao_maxima_produto" class="form-control"
+                       min="0" max="100" value="{{ comissao_maxima_produto }}" required>
+                <div class="form-text">
+                    Porcentagem máxima de comissão que um funcionário pode receber sobre a venda de um produto.
+                </div>
+            </div>
+
             <button type="submit" class="btn btn-primary mt-3">Salvar Configurações</button>
         </form>
     </div>

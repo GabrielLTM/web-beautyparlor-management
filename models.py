@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Boolean, Numeric, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
@@ -385,6 +385,10 @@ class FluxoCaixa(Base):
     agendamento_id = Column(Integer, ForeignKey("agendamentos.id"), nullable=True)
     funcionario = relationship("Funcionario")
     agendamento = relationship("Agendamento")
+    produto_id = Column(Integer, ForeignKey("produtos.id"), nullable=True)
+    quantidade = Column(Integer, server_default='1', nullable=True)
+    comissao_percentual = Column(Numeric(5, 2), nullable=True)
+    produto = relationship("Produto")
 
 
 class Produto(Base):
@@ -415,3 +419,4 @@ class Produto(Base):
     valor = Column(Numeric(10, 2), nullable=False)
     caminho_foto = Column(String, nullable=True)
     is_ativo = Column(Boolean, server_default='true', nullable=False)
+    vendas = relationship("FluxoCaixa", back_populates="produto")

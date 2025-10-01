@@ -60,65 +60,74 @@ async def get_dashboard_page(
     """
     Exibe o dashboard de desempenho semanal para o funcionário logado.
 
-    Esta rota implementa a regra de negócio específica do salão para a "semana
-    de pagamento", permitindo a navegação entre semanas.
-    O período de análise é sempre de Terça-feira a Sábado. A lógica decide
-    qual semana exibir com base numa data de referência: até Quarta-feira,
-    mostra a semana anterior; a partir de Quinta-feira, mostra a semana corrente.
+    Esta rota calcula o desempenho total de um funcionário num período de trabalho
+    (Terça a Sábado), somando os valores dos serviços concluídos com as vendas
+    de produtos que foram marcadas como comissionáveis.
+
+    A função implementa a regra de negócio do dia de pagamento: com base numa
+    data de referência (o dia atual ou uma data da URL), ela decide qual semana
+    exibir. Até Quarta-feira, mostra a semana anterior completa (para a conferência
+    do pagamento); a partir de Quinta-feira, mostra a semana corrente. A função
+    também fornece datas para a navegação entre semanas.
 
     Args:
         request (Request): O objeto de requisição do FastAPI.
         db (Session): A sessão do banco de dados.
         user (dict): Os dados do usuário logado.
-        data (Optional[date]): Uma data de referência para calcular a semana.
-                               Se não for fornecida, usa a data atual.
+        data (Optional[date]): Uma data de referência opcional para calcular a semana.
 
     Returns:
         TemplateResponse: Renderiza a página 'dashboard.html' com os dados de
-                          desempenho e as datas para navegação.
+                          desempenho consolidados e as datas para navegação.
     """
-
     # 1. Determina a data de referência
     if data:
-        # Se uma data for fornecida pela URL, use-a diretamente.
         data_base = data
     else:
-        # Se for o primeiro carregamento, aplica a regra de negócio.
         hoje = date.today()
-        # Se for Dom, Seg, Ter ou Qua, a referência é a semana passada.
         if hoje.weekday() in [6, 0, 1, 2]:
             data_base = hoje - timedelta(days=7)
-        else: # Se for Qui, Sex ou Sab, a referência é a semana atual.
+        else:
             data_base = hoje
 
-    # 2. Calcula a semana de trabalho (Terça a Sábado) que contém a data_base
+    # 2. Calcula a semana de trabalho
     weekday_base = data_base.weekday()
     offset_para_terca = (weekday_base - 1 + 7) % 7
     data_inicio = data_base - timedelta(days=offset_para_terca)
-    data_fim = data_inicio + timedelta(days=4)  # Sábado
+    data_fim = data_inicio + timedelta(days=4)
 
-    # 3. Calcula as datas para os links de navegação
     data_semana_anterior = data_inicio - timedelta(days=7)
     data_proxima_semana = data_inicio + timedelta(days=7)
 
-    # Converte para datetime para a consulta no banco de dados
     inicio_periodo = datetime.combine(data_inicio, time.min)
     fim_periodo = datetime.combine(data_fim, time.max)
 
-    # Busca os dados no banco de dados
+    # 3. Calcula o total de vendas de SERVIÇOS
     agendamentos_concluidos = db.query(models.Agendamento).filter(
         models.Agendamento.funcionario_id == user['id'],
         models.Agendamento.status == "Concluído",
         models.Agendamento.data_hora.between(inicio_periodo, fim_periodo)
     ).all()
+    total_vendas_servicos = sum(ag.preco_final for ag in agendamentos_concluidos if ag.preco_final is not None)
 
-    total_vendas = sum(ag.preco_final for ag in agendamentos_concluidos if ag.preco_final is not None)
+    # 4. Calcula o total de vendas de PRODUTOS com comissão
+    vendas_produtos_comissionadas = db.query(models.FluxoCaixa).filter(
+        models.FluxoCaixa.funcionario_id == user['id'],
+        models.FluxoCaixa.tipo == "Entrada",
+        models.FluxoCaixa.produto_id != None,
+        models.FluxoCaixa.comissao_percentual > 0,
+        models.FluxoCaixa.data_hora_registro.between(inicio_periodo, fim_periodo)
+    ).all()
+    total_vendas_produtos = sum(venda.valor for venda in vendas_produtos_comissionadas)
+
+    # 5. Soma os totais para o desempenho final
+    total_vendas = total_vendas_servicos + total_vendas_produtos
 
     # Prepara o contexto para enviar ao template
     context = {
         "request": request,
         "user": user,
-        "agendamentos_concluidos": agendamentos_concluidos,
+        "agendamentos_concluidos": agendamentos_concluidos, # Mantemos para a lista de serviços
         "total_vendas": total_vendas,
         "data_inicio_str": data_inicio.strftime("%d/%m/%Y"),
         "data_fim_str": data_fim.strftime("%d/%m/%Y"),
@@ -270,6 +279,127 @@ async def get_pagina_listar_clientes(
         "servicos_json": servicos_json, "todos_clientes_filtro": todos_clientes_filtro
     }
     return templates.TemplateResponse("painel_clientes.html", context)
+
+
+@router.get("/vender-produto", response_class=HTMLResponse)
+async def get_pagina_vender_produto(
+        request: Request,
+        db: Session = Depends(get_db),
+        user: dict = Depends(get_current_user)
+):
+    """
+    Exibe a página para a venda de produtos.
+
+    Esta rota GET prepara e serve a interface de ponto de venda (PDV) para produtos.
+    As suas principais responsabilidades são:
+
+    1.  Buscar todos os produtos ativos no catálogo.
+    2.  Buscar a configuração global de "comissão máxima" para informar os limites ao funcionário.
+    3.  Formatar os dados dos produtos de duas maneiras para o frontend:
+        - Uma lista de objetos para a renderização da tabela na página.
+        - Um dicionário JSON para ser usado pelo JavaScript, permitindo que o
+          resumo da venda seja calculado dinamicamente no lado do cliente.
+
+    Args:
+        request (Request): O objeto de requisição do FastAPI.
+        db (Session): A sessão do banco de dados.
+        user (dict): Os dados do funcionário logado.
+
+    Returns:
+        TemplateResponse: Renderiza a página 'vender_produto.html' com a lista
+                          de produtos, o JSON para o script e a comissão máxima permitida.
+    """
+    produtos_ativos = db.query(models.Produto).filter(
+        models.Produto.is_ativo == True
+    ).order_by(models.Produto.nome).all()
+
+    # Busca a configuração de comissão máxima definida pelo admin
+    comissao_maxima_obj = db.query(models.Configuracao).filter(
+        models.Configuracao.chave == "COMISSAO_MAXIMA_PRODUTO"
+    ).first()
+    # Usa um valor padrão de 10% se a configuração não existir
+    comissao_maxima = comissao_maxima_obj.valor if comissao_maxima_obj else "10"
+
+    # Prepara os dados para o JavaScript da página
+    produtos_json = {p.id: {"nome": p.nome, "valor": float(p.valor)} for p in produtos_ativos}
+
+    context = {
+        "request": request,
+        "user": user,
+        "produtos": produtos_ativos,
+        "produtos_json": produtos_json,
+        "comissao_maxima": comissao_maxima
+    }
+    return templates.TemplateResponse("vender_produto.html", context)
+
+
+@router.post("/vender-produto")
+async def handle_form_vender_produto(
+        request: Request,
+        db: Session = Depends(get_db),
+        user: dict = Depends(get_current_user),
+        produto_ids: list[int] = Form(...),
+        quantidades: list[int] = Form(...),
+        metodo_pagamento: str = Form(...),
+        # ### LÓGICA DE COMISSÃO ATUALIZADA ###
+        comissao_percentual: Optional[Decimal] = Form(None)
+):
+    """
+    Processa o formulário de venda de produtos, com lógica de comissão por percentagem.
+
+    Esta rota POST valida a comissão inserida pelo funcionário contra o limite
+    máximo definido pelo administrador. Se válida, cria registos no Fluxo de Caixa
+    para cada produto vendido, armazenando a percentagem de comissão exata para
+    futuros cálculos de desempenho.
+    """
+    # 1. Busca o limite máximo de comissão configurado pelo admin
+    comissao_maxima_obj = db.query(models.Configuracao).filter(
+        models.Configuracao.chave == "COMISSAO_MAXIMA_PRODUTO"
+    ).first()
+    limite_comissao = Decimal(comissao_maxima_obj.valor) if comissao_maxima_obj else Decimal("10")
+
+    # 2. Valida a comissão recebida do formulário
+    comissao_a_registrar = comissao_percentual if comissao_percentual is not None else Decimal("0.00")
+
+    if not (0 <= comissao_a_registrar <= limite_comissao):
+        # Se a comissão for inválida, recarrega a página com uma mensagem de erro
+        produtos_ativos = db.query(models.Produto).filter(models.Produto.is_ativo == True).order_by(
+            models.Produto.nome).all()
+        produtos_json = {p.id: {"nome": p.nome, "valor": float(p.valor)} for p in produtos_ativos}
+        context = {
+            "request": request, "user": user, "produtos": produtos_ativos, "produtos_json": produtos_json,
+            "comissao_maxima": limite_comissao,
+            "error": f"A comissão deve estar entre 0% e {limite_comissao}%."
+        }
+        return templates.TemplateResponse("vender_produto.html", context, status_code=400)
+
+    # 3. Se a validação passar, processa a venda
+    for produto_id, quantidade in zip(produto_ids, quantidades):
+        if quantidade > 0:
+            produto = db.query(models.Produto).filter(models.Produto.id == produto_id).first()
+            if not produto:
+                continue
+
+            valor_total_item = produto.valor * quantidade
+
+            novo_registro_caixa = models.FluxoCaixa(
+                descricao=f"Venda produto: {quantidade}x {produto.nome}",
+                valor=valor_total_item,
+                tipo="Entrada",
+                metodo_pagamento=metodo_pagamento,
+                funcionario_id=user['id'],
+                produto_id=produto.id,
+                quantidade=quantidade,
+                comissao_percentual=comissao_a_registrar  # Salva a percentagem correta
+            )
+            db.add(novo_registro_caixa)
+
+    db.commit()
+
+    return RedirectResponse(
+        url="/painel/vender-produto?success=true",
+        status_code=status.HTTP_303_SEE_OTHER
+    )
 
 
 @router.get("/clientes/novo", response_class=HTMLResponse)

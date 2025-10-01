@@ -109,41 +109,49 @@
 <hr>
 
 <h2 class="h4 mb-3">Registros Detalhados</h2>
-<table class="table table-striped table-hover">
-    <thead>
-        <tr>
-            <th>Hora</th>
-            <th>Descrição</th>
-            <th>Funcionário</th>
-            <th>Método Pgto.</th>
-            <th>Tipo</th>
-            <th class="text-end">Valor</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% if registros %}
-            {% for registro in registros %}
-                <tr>
-                    <td>{{ registro.data_hora_registro.strftime('%H:%M') }}</td>
-                    <td>{{ registro.descricao }}</td>
-                    <td>{{ registro.funcionario.nome if registro.funcionario else 'Admin' }}</td>
-                    <td>{{ registro.metodo_pagamento or 'N/A' }}</td>
-                    <td>
-                        <span class="badge {% if registro.tipo == 'Entrada' %}bg-success{% else %}bg-danger{% endif %}">
-                            {{ registro.tipo }}
-                        </span>
-                    </td>
-                    <td class="fw-bold text-end {% if registro.tipo == 'Entrada' %}entrada{% else %}saida{% endif %}">
-                        R$ {{ "%.2f"|format(registro.valor|float) }}
-                    </td>
-                </tr>
-            {% endfor %}
-        {% else %}
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead>
             <tr>
-                <td colspan="6" class="text-center">Nenhum registro encontrado para esta data e filtro.</td>
+                <th>Hora</th>
+                <th>Descrição</th>
+                <th>Funcionário</th>
+                <th>Método Pgto.</th>
+                <th>Tipo</th>
+                <th class="text-center">Comissão (%)</th> <th class="text-end">Valor</th>
             </tr>
-        {% endif %}
-    </tbody>
-</table>
-
+        </thead>
+        <tbody>
+            {% if registros %}
+                {% for registro in registros %}
+                    <tr>
+                        <td>{{ registro.data_hora_registro.strftime('%H:%M') }}</td>
+                        <td>{{ registro.descricao }}</td>
+                        <td>{{ registro.funcionario.nome if registro.funcionario else 'Admin' }}</td>
+                        <td>{{ registro.metodo_pagamento or 'N/A' }}</td>
+                        <td>
+                            <span class="badge {% if registro.tipo == 'Entrada' %}bg-success{% else %}bg-danger{% endif %}">
+                                {{ registro.tipo }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            {% if registro.produto_id %}
+                                {{ "%.2f"|format(registro.comissao_percentual|float) }}%
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold text-end {% if registro.tipo == 'Entrada' %}entrada{% else %}saida{% endif %}">
+                            R$ {{ "%.2f"|format(registro.valor|float) }}
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="7" class="text-center">Nenhum registro encontrado para esta data e filtro.</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
 {% endblock %}

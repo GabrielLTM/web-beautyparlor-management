@@ -56,33 +56,12 @@ async def get_admin_page(request: Request, user: dict = Depends(get_current_admi
 
 @router.get("/desempenho", response_class=HTMLResponse)
 async def get_pagina_desempenho_equipa(
-    request: Request, db: Session = Depends(get_db), user: dict = Depends(get_current_admin_user),
-    data_inicio_filtro: date | None = Query(default=None), data_fim_filtro: date | None = Query(default=None)
+        request: Request, db: Session = Depends(get_db), user: dict = Depends(get_current_admin_user),
+        data_inicio_filtro: date | None = Query(default=None), data_fim_filtro: date | None = Query(default=None)
 ):
     """
     Exibe o dashboard de desempenho consolidado para toda a equipe.
-
-    Esta rota serve como uma ferramenta de análise financeira para o administrador.
-    Ela possui um comportamento duplo:
-
-    1.  **Visão Padrão:** Se nenhum filtro de data for fornecido, ela calcula e
-        exibe o desempenho da equipe para a "semana de pagamento" atual.
-    2.  **Visão Personalizada:** Se um intervalo de datas for fornecido, ela
-        recalcula os totais de vendas para esse período específico.
-
-    A função utiliza uma única consulta agregada (GROUP BY e SUM) para calcular
-    o total de vendas de todos os funcionários de forma eficiente, evitando o
-    problema de "N+1 queries" e garantindo a performance da aplicação.
-
-    Args:
-        request (Request): O objeto de requisição do FastAPI.
-        db (Session): A sessão do banco de dados, injetada como dependência.
-        user (dict): Os dados do usuário administrador logado.
-        data_inicio_filtro (date | None): Data de início opcional para o filtro.
-        data_fim_filtro (date | None): Data de fim opcional para o filtro.
-
-    Returns:
-        TemplateResponse: Uma resposta HTML que renderiza a página 'admin_desempenho.html'.
+    ... (docstring) ...
     """
     if data_inicio_filtro and data_fim_filtro:
         data_inicio = data_inicio_filtro
@@ -102,20 +81,49 @@ async def get_pagina_desempenho_equipa(
 
     inicio_periodo = datetime.combine(data_inicio, time.min)
     fim_periodo = datetime.combine(data_fim, time.max)
-    resultados_vendas = db.query(
+
+    # ======================== INÍCIO DA DEPURAÇÃO ========================
+    print("\n--- DEPURAÇÃO: DESEMPENHO DA EQUIPA ---")
+    print(f"A analisar o período de: {inicio_periodo} até {fim_periodo}")
+    # ===================================================================
+
+    # 1. Busca o total de vendas de SERVIÇOS por funcionário
+    resultados_vendas_servicos = db.query(
         models.Agendamento.funcionario_id,
         func.sum(models.Agendamento.preco_final).label("total_vendas")
     ).filter(
         models.Agendamento.status == "Concluído",
         models.Agendamento.data_hora.between(inicio_periodo, fim_periodo)
-    ).group_by(
-        models.Agendamento.funcionario_id
-    ).all()
-    vendas_por_funcionario = {funcionario_id: total for funcionario_id, total in resultados_vendas}
-    funcionarios_ativos = db.query(models.Funcionario).filter(models.Funcionario.is_ativo == True).order_by(models.Funcionario.nome).all()
+    ).group_by(models.Agendamento.funcionario_id).all()
+    vendas_servicos_por_func = {func_id: total for func_id, total in resultados_vendas_servicos}
+
+    # 2. Busca o total de vendas de PRODUTOS com comissão por funcionário
+    resultados_vendas_produtos = db.query(
+        models.FluxoCaixa.funcionario_id,
+        func.sum(models.FluxoCaixa.valor).label("total_vendas_produtos")
+    ).filter(
+        models.FluxoCaixa.tipo == "Entrada",
+        models.FluxoCaixa.produto_id != None,
+        models.FluxoCaixa.comissao_percentual > 0,
+        models.FluxoCaixa.data_hora_registro.between(inicio_periodo, fim_periodo)
+    ).group_by(models.FluxoCaixa.funcionario_id).all()
+
+    # ======================== INÍCIO DA DEPURAÇÃO ========================
+    print(f"Resultados da consulta de produtos: {resultados_vendas_produtos}")
+    print("--- FIM DA DEPURAÇÃO ---\n")
+    # ===================================================================
+
+    vendas_produtos_por_func = {func_id: total for func_id, total in resultados_vendas_produtos}
+
+    # 3. Combina os resultados para cada funcionário ativo
+    funcionarios_ativos = db.query(models.Funcionario).filter(models.Funcionario.is_ativo == True).order_by(
+        models.Funcionario.nome).all()
     desempenho_funcionarios = []
     for f in funcionarios_ativos:
-        total_vendas = vendas_por_funcionario.get(f.id, Decimal("0.00"))
+        total_servicos = vendas_servicos_por_func.get(f.id, Decimal("0.00"))
+        total_produtos = vendas_produtos_por_func.get(f.id, Decimal("0.00"))
+        total_vendas = total_servicos + total_produtos
+
         desempenho_funcionarios.append({
             "funcionario": f,
             "total_vendas": total_vendas
@@ -1072,8 +1080,8 @@ async def handle_form_debito_conta_corrente(
 
 @router.get("/configuracoes", response_class=HTMLResponse)
 async def get_pagina_configuracoes(
-    request: Request, db: Session = Depends(get_db), user: dict = Depends(get_current_admin_user),
-    success: bool = False
+        request: Request, db: Session = Depends(get_db), user: dict = Depends(get_current_admin_user),
+        success: bool = False
 ):
     """
     Exibe a página de configurações gerais para o administrador.
@@ -1095,23 +1103,36 @@ async def get_pagina_configuracoes(
     Returns:
         TemplateResponse: Uma resposta HTML que renderiza a página 'admin_configuracoes.html'.
     """
-    # ... (código da função get_pagina_configuracoes)
-    limite_desconto_obj = db.query(models.Configuracao).filter(models.Configuracao.chave == "LIMITE_DESCONTO_PACOTE").first()
+    # Busca o limite de desconto
+    limite_desconto_obj = db.query(models.Configuracao).filter(
+        models.Configuracao.chave == "LIMITE_DESCONTO_PACOTE").first()
     limite_desconto = limite_desconto_obj.valor if limite_desconto_obj else "20"
-    comissao_permuta_obj = db.query(models.Configuracao).filter(models.Configuracao.chave == "COMISSAO_SALAO_PERMUTA_PERC").first()
+
+    # Busca a comissão de permuta
+    comissao_permuta_obj = db.query(models.Configuracao).filter(
+        models.Configuracao.chave == "COMISSAO_SALAO_PERMUTA_PERC").first()
     comissao_permuta = comissao_permuta_obj.valor if comissao_permuta_obj else "50"
+
+    # Busca a comissão máxima de produto, com um valor padrão de 10%
+    comissao_maxima_obj = db.query(models.Configuracao).filter(
+        models.Configuracao.chave == "COMISSAO_MAXIMA_PRODUTO").first()
+    comissao_maxima_produto = comissao_maxima_obj.valor if comissao_maxima_obj else "10"
+
     context = {
         "request": request, "user": user, "limite_desconto": limite_desconto,
-        "comissao_permuta": comissao_permuta, "success": success
+        "comissao_permuta": comissao_permuta,
+        "comissao_maxima_produto": comissao_maxima_produto,  # Adicionado ao contexto
+        "success": success
     }
     return templates.TemplateResponse("admin_configuracoes.html", context)
 
 
-
 @router.post("/configuracoes")
 async def handle_form_configuracoes(
-    db: Session = Depends(get_db), user: dict = Depends(get_current_admin_user),
-    limite_desconto: int = Form(..., ge=0, le=100), comissao_permuta: int = Form(..., ge=0, le=100)
+        db: Session = Depends(get_db), user: dict = Depends(get_current_admin_user),
+        limite_desconto: int = Form(..., ge=0, le=100),
+        comissao_permuta: int = Form(..., ge=0, le=100),
+        comissao_maxima_produto: int = Form(..., ge=0, le=100)
 ):
     """
     Processa e persiste as configurações globais do sistema.
@@ -1132,12 +1153,13 @@ async def handle_form_configuracoes(
         user (dict): Os dados do usuário administrador logado.
         limite_desconto (int): O novo valor para o limite de desconto em pacotes.
         comissao_permuta (int): O novo valor para a comissão do salão em permutas.
+        comissao_maxima_produto (int): O novo valor para a comissão máxima em produtos.
 
     Returns:
         RedirectResponse: Redireciona o administrador de volta para a página de configurações,
         com uma mensagem de sucesso.
     """
-    # ... (código da função handle_form_configuracoes)
+
     def salvar_config(chave: str, valor: str):
         config_obj = db.query(models.Configuracao).filter(models.Configuracao.chave == chave).first()
         if not config_obj:
@@ -1145,9 +1167,13 @@ async def handle_form_configuracoes(
             db.add(config_obj)
         else:
             config_obj.valor = valor
+
     salvar_config("LIMITE_DESCONTO_PACOTE", str(limite_desconto))
     salvar_config("COMISSAO_SALAO_PERMUTA_PERC", str(comissao_permuta))
+    salvar_config("COMISSAO_MAXIMA_PRODUTO", str(comissao_maxima_produto))
+
     db.commit()
+
     return RedirectResponse(url="/painel/admin/configuracoes?success=true", status_code=status.HTTP_303_SEE_OTHER)
 
 

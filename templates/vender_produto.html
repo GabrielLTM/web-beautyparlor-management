@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Vender Produto - Bella Estética{% endblock %}
+
+{% block styles %}
+<style>
+    .product-img-sm {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: .25rem;
+    }
+    .summary-card {
+        position: sticky;
+        top: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Vender Produto</h1>
+<p class="lead">Selecione os produtos e as quantidades para registrar uma nova venda.</p>
+
+<form id="formVendaProduto" method="post">
+    <div class="row g-4">
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header">
+                    <strong>Catálogo de Produtos</strong>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 70px;">Foto</th>
+                                <th>Produto</th>
+                                <th class="text-end">Valor (R$)</th>
+                                <th style="width: 120px;" class="text-center">Quantidade</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for produto in produtos %}
+                                <tr>
+                                    <td>
+                                        {% if produto.caminho_foto %}
+                                            <img src="/static/uploads/products/{{ produto.caminho_foto }}" alt="{{ produto.nome }}" class="product-img-sm">
+                                        {% else %}
+                                            <div class="product-img-sm bg-light d-flex align-items-center justify-content-center">
+                                                <i class="bi bi-camera fs-5 text-muted"></i>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ produto.nome }}</td>
+                                    <td class="text-end">{{ "%.2f"|format(produto.valor|float) }}</td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm text-center quantidade-input"
+                                               data-produto-id="{{ produto.id }}" value="0" min="0">
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-5">
+            <div class="card summary-card">
+                <div class="card-header">
+                    <strong>Resumo da Venda</strong>
+                </div>
+                <div class="card-body">
+                    <ul id="listaResumo" class="list-group list-group-flush mb-3">
+                        <li class="list-group-item text-muted text-center">Nenhum produto selecionado.</li>
+                    </ul>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fs-5">Total:</span>
+                        <span id="valorTotal" class="fs-4 fw-bold text-success">R$ 0,00</span>
+                    </div>
+                    <hr>
+                    <div class="mb-3">
+                        <label for="metodo_pagamento" class="form-label">Forma de Pagamento:</label>
+                        <select id="metodo_pagamento" name="metodo_pagamento" class="form-select" required>
+                            <option value="" disabled selected>-- Escolha uma opção --</option>
+                            <option value="PIX">PIX</option>
+                            <option value="Dinheiro">Dinheiro</option>
+                            <option value="Cartão de Crédito">Cartão de Crédito</option>
+                            <option value="Cartão de Débito">Cartão de Débito</option>
+                        </select>
+                    </div>
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="incluir_comissao">
+                        <label class="form-check-label" for="incluir_comissao">
+                            Incluir esta venda na minha comissão
+                        </label>
+                    </div>
+                    <div class="mb-3 mt-2" id="campoComissaoPercentual" style="display: none;">
+                        <label for="comissao_percentual" class="form-label">Percentagem de Comissão (%):</label>
+                        <input type="number" class="form-control" id="comissao_percentual" name="comissao_percentual"
+                               min="0" max="{{ comissao_maxima }}" step="0.01" value="0">
+                        <div class="form-text">
+                            A comissão máxima permitida é de {{ comissao_maxima }}%.
+                        </div>
+                    </div>
+
+                    <div id="hidden-inputs-container"></div>
+                </div>
+                <div class="card-footer d-grid">
+                    <button type="submit" class="btn btn-primary btn-lg">Finalizar Venda</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const produtosData = {{ produtos_json|tojson }};
+        const quantidadeInputs = document.querySelectorAll('.quantidade-input');
+        const listaResumo = document.getElementById('listaResumo');
+        const valorTotalEl = document.getElementById('valorTotal');
+        const form = document.getElementById('formVendaProduto');
+        const hiddenInputsContainer = document.getElementById('hidden-inputs-container');
+
+        // ### NOVA LÓGICA DE COMISSÃO ###
+        const checkComissao = document.getElementById('incluir_comissao');
+        const campoComissaoPercentual = document.getElementById('campoComissaoPercentual');
+        const inputComissao = document.getElementById('comissao_percentual');
+        const comissaoMaxima = parseFloat('{{ comissao_maxima }}');
+
+        checkComissao.addEventListener('change', function() {
+            if (this.checked) {
+                campoComissaoPercentual.style.display = 'block';
+                inputComissao.value = comissaoMaxima; // Preenche com o valor máximo por defeito
+                inputComissao.required = true;
+            } else {
+                campoComissaoPercentual.style.display = 'none';
+                inputComissao.value = 0;
+                inputComissao.required = false;
+            }
+        });
+
+
+        function atualizarResumo() {
+            let total = 0;
+            listaResumo.innerHTML = '';
+            hiddenInputsContainer.innerHTML = '';
+            let algumProdutoSelecionado = false;
+
+            quantidadeInputs.forEach(input => {
+                const produtoId = input.dataset.produtoId;
+                const quantidade = parseInt(input.value) || 0;
+
+                if (quantidade > 0) {
+                    algumProdutoSelecionado = true;
+                    const produtoInfo = produtosData[produtoId];
+                    const subtotal = quantidade * produtoInfo.valor;
+                    total += subtotal;
+
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item d-flex justify-content-between';
+                    li.innerHTML = `
+                        <span>${quantidade}x ${produtoInfo.nome}</span>
+                        <span>R$ ${subtotal.toFixed(2).replace('.', ',')}</span>
+                    `;
+                    listaResumo.appendChild(li);
+
+                    const hiddenId = document.createElement('input');
+                    hiddenId.type = 'hidden';
+                    hiddenId.name = 'produto_ids';
+                    hiddenId.value = produtoId;
+                    hiddenInputsContainer.appendChild(hiddenId);
+
+                    const hiddenQtd = document.createElement('input');
+                    hiddenQtd.type = 'hidden';
+                    hiddenQtd.name = 'quantidades';
+                    hiddenQtd.value = quantidade;
+                    hiddenInputsContainer.appendChild(hiddenQtd);
+                }
+            });
+
+            if (!algumProdutoSelecionado) {
+                const li = document.createElement('li');
+                li.className = 'list-group-item text-muted text-center';
+                li.textContent = 'Nenhum produto selecionado.';
+                listaResumo.appendChild(li);
+            }
+
+            valorTotalEl.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+        }
+
+        quantidadeInputs.forEach(input => {
+            input.addEventListener('input', atualizarResumo);
+        });
+    });
+</script>
+{% endblock %}
