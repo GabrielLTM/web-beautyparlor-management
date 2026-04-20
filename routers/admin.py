@@ -61,7 +61,6 @@ async def get_pagina_desempenho_equipa(
 ):
     """
     Exibe o dashboard de desempenho consolidado para toda a equipe.
-    ... (docstring) ...
     """
     if data_inicio_filtro and data_fim_filtro:
         data_inicio = data_inicio_filtro

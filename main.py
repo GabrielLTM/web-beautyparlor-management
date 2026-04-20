@@ -27,9 +27,6 @@ from dependencies import NotAuthenticatedException
 # Carrega as variáveis de ambiente definidas no ficheiro .env para o ambiente de execução.
 load_dotenv()
 
-# Garante que todas as tabelas definidas em models.py sejam criadas no banco de dados
-# se ainda não existirem. Esta linha é executada uma vez, no arranque da aplicação.
-models.Base.metadata.create_all(bind=engine)
 
 # Cria a instância principal da aplicação FastAPI, com metadados para documentação.
 app = FastAPI(

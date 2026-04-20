@@ -1,8 +1,25 @@
+import enum
+from sqlalchemy import Enum 
 from sqlalchemy import Column, Integer, String, Boolean, Numeric, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
 
+
+class StatusAgendamento(str, enum.Enum):
+    AGENDADO = "Agendado"
+    CONCLUIDO = "Concluído"
+    CANCELADO = "Cancelado"
+
+class TipoTransacao(str, enum.Enum):
+    ADICAO = "Adição"
+    USO = "Uso"
+    DEBITO = "Débito"
+    CREDITO = "Crédito"
+
+class TipoFluxoCaixa(str, enum.Enum):
+    ENTRADA = "Entrada"
+    SAIDA = "Saída"
 
 class Configuracao(Base):
     """
@@ -154,7 +171,7 @@ class Servico(Base):
     duracao_padrao_minutos = Column(Integer)
     preco_minimo = Column(Numeric(10, 2))
     is_ativo = Column(Boolean, default=True, nullable=False)
-    categoria_id = Column(Integer, ForeignKey("categorias.id"))
+    categoria_id = Column(Integer, ForeignKey("categorias.id", ondelete="SET NULL"))
     categoria = relationship("Categoria", back_populates="servicos")
 
 
@@ -195,7 +212,7 @@ class Agendamento(Base):
     data_hora = Column(DateTime, index=True)
     duracao_efetiva_minutos = Column(Integer)
     preco_final = Column(Numeric(10, 2))
-    status = Column(String, default="Agendado", index=True)
+    status = Column(Enum(StatusAgendamento), default=StatusAgendamento.AGENDADO, index=True)
     cliente_id = Column(Integer, ForeignKey("clientes.id"))
     funcionario_id = Column(Integer, ForeignKey("funcionarios.id"))
     servico_id = Column(Integer, ForeignKey("servicos.id"))
@@ -233,7 +250,7 @@ class TransacaoCredito(Base):
     __tablename__ = "transacoes_credito"
     id = Column(Integer, primary_key=True, index=True)
     data_hora = Column(DateTime, default=datetime.now)
-    tipo = Column(String, index=True)
+    tipo = Column(Enum(TipoTransacao), index=True)
     valor = Column(Numeric(10, 2), nullable=False)
     descricao = Column(String)
     cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=False)
@@ -379,7 +396,7 @@ class FluxoCaixa(Base):
     data_hora_registro = Column(DateTime, default=datetime.now, index=True)
     descricao = Column(String, nullable=False)
     valor = Column(Numeric(10, 2), nullable=False)
-    tipo = Column(String, index=True, nullable=False)
+    tipo = Column(Enum(TipoFluxoCaixa), index=True, nullable=False)
     metodo_pagamento = Column(String, nullable=True)
     funcionario_id = Column(Integer, ForeignKey("funcionarios.id"))
     agendamento_id = Column(Integer, ForeignKey("agendamentos.id"), nullable=True)
@@ -419,4 +436,4 @@ class Produto(Base):
     valor = Column(Numeric(10, 2), nullable=False)
     caminho_foto = Column(String, nullable=True)
     is_ativo = Column(Boolean, server_default='true', nullable=False)
-    vendas = relationship("FluxoCaixa", back_populates="produto")
+    vendas = relationship("FluxoCaixa", back_populates="produto")   
