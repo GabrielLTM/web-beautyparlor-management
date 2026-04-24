@@ -13,7 +13,6 @@ from typing import Optional
 import math
 import models
 from dependencies import get_db, get_current_user
-from collections import defaultdict
 from security import verificar_senha, gerar_hash_senha
 
 router = APIRouter(

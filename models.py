@@ -405,7 +405,7 @@ class FluxoCaixa(Base):
     produto_id = Column(Integer, ForeignKey("produtos.id"), nullable=True)
     quantidade = Column(Integer, server_default='1', nullable=True)
     comissao_percentual = Column(Numeric(5, 2), nullable=True)
-    produto = relationship("Produto")
+    produto = relationship("Produto", back_populates="vendas")
 
 
 class Produto(Base):
