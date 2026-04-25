@@ -103,7 +103,7 @@ async def get_dashboard_page(
 
     # 3. Calcula o total de vendas de SERVIÇOS
     agendamentos_concluidos = db.query(models.Agendamento).filter(
-        models.Agendamento.funcionario_id == user['id'],
+        models.Agendamento.funcionario_id == user.id,
         models.Agendamento.status == "Concluído",
         models.Agendamento.data_hora.between(inicio_periodo, fim_periodo)
     ).all()
@@ -111,7 +111,7 @@ async def get_dashboard_page(
 
     # 4. Calcula o total de vendas de PRODUTOS com comissão
     vendas_produtos_comissionadas = db.query(models.FluxoCaixa).filter(
-        models.FluxoCaixa.funcionario_id == user['id'],
+        models.FluxoCaixa.funcionario_id == user.id,
         models.FluxoCaixa.tipo == "Entrada",
         models.FluxoCaixa.produto_id != None,
         models.FluxoCaixa.comissao_percentual > 0,
@@ -179,7 +179,7 @@ async def get_pagina_historico_desempenho(
         joinedload(models.Agendamento.cliente),
         joinedload(models.Agendamento.servico)
     ).filter(
-        models.Agendamento.funcionario_id == user['id'],
+        models.Agendamento.funcionario_id == user.id,
         models.Agendamento.status == "Concluído"
     )
 
@@ -385,7 +385,7 @@ async def handle_form_vender_produto(
                 valor=valor_total_item,
                 tipo="Entrada",
                 metodo_pagamento=metodo_pagamento,
-                funcionario_id=user['id'],
+                funcionario_id=user.id,
                 produto_id=produto.id,
                 quantidade=quantidade,
                 comissao_percentual=comissao_a_registrar
@@ -616,12 +616,12 @@ async def handle_form_adicionar_creditos(
     descricao_pacote += ", ".join(detalhes)
     cliente.saldo_credito += valor_total_pago
     nova_transacao = models.TransacaoCredito(
-        cliente_id=cliente.id, funcionario_id=user['id'], tipo="Adição",
+        cliente_id=cliente.id, funcionario_id=user.id, tipo="Adição",
         valor=valor_total_pago, descricao=descricao_pacote
     )
     db.add(nova_transacao)
     nova_entrada_caixa = models.FluxoCaixa(
-        funcionario_id=user['id'], tipo="Entrada", valor=valor_total_pago,
+        funcionario_id=user.id, tipo="Entrada", valor=valor_total_pago,
         metodo_pagamento=metodo_pagamento, descricao=f"Venda de Crédito/Pacote para {cliente.nome}"
     )
     db.add(nova_entrada_caixa)
@@ -914,7 +914,7 @@ async def finalizar_agendamento(
     # A lógica de negócio só é executada se o agendamento ainda não estiver concluído.
     if db_agendamento.status != "Concluído":
         log_status = models.LogAlteracao(
-            agendamento_id=agendamento_id, funcionario_id=user['id'],
+            agendamento_id=agendamento_id, funcionario_id=user.id,
             campo_alterado="status", valor_antigo=db_agendamento.status, valor_novo="Concluído"
         )
         db.add(log_status)
@@ -938,11 +938,12 @@ async def finalizar_agendamento(
             db_agendamento.cliente.saldo_credito -= db_agendamento.preco_final
             nova_transacao_credito = models.TransacaoCredito(
                 cliente_id=db_agendamento.cliente_id,
+                funcionario_id=user.id,
                 agendamento_id=agendamento_id,
                 tipo="Uso",
                 valor=db_agendamento.preco_final,
                 descricao=f"Pagamento serviço: {db_agendamento.servico.nome}"
-            )
+                )
             db.add(nova_transacao_credito)
 
         else:  # Para PIX, Dinheiro, Cartão, etc.
@@ -998,7 +999,7 @@ async def cancelar_agendamento(
         raise HTTPException(status_code=403, detail="Não é possível cancelar agendamentos de dias anteriores.")
     if db_agendamento.status != "Cancelado":
         log_cancelamento = models.LogAlteracao(
-            agendamento_id=agendamento_id, funcionario_id=user['id'],
+            agendamento_id=agendamento_id, funcionario_id=user.id,
             campo_alterado="status", valor_antigo=db_agendamento.status, valor_novo="Cancelado"
         )
         db.add(log_cancelamento)
@@ -1101,7 +1102,7 @@ async def handle_form_editar_agendamento(
     if db_agendamento.preco_final != preco_final:
         valor_antigo = str(db_agendamento.preco_final)
         novo_log = models.LogAlteracao(
-            agendamento_id=agendamento_id, funcionario_id=user['id'],
+            agendamento_id=agendamento_id, funcionario_id=user.id,
             campo_alterado="preco_final", valor_antigo=valor_antigo, valor_novo=str(preco_final)
         )
         db.add(novo_log)
@@ -1217,7 +1218,7 @@ async def handle_form_alterar_senha(
             status_code=status.HTTP_303_SEE_OTHER
         )
 
-    db_funcionario = db.query(models.Funcionario).filter(models.Funcionario.id == user['id']).first()
+    db_funcionario = db.query(models.Funcionario).filter(models.Funcionario.id == user.id).first()
 
     # Validação de segurança crucial: verificar se a senha atual está correta
     if not verificar_senha(senha_atual, db_funcionario.senha_hash):

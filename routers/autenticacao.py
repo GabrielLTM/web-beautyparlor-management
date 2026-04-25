@@ -67,8 +67,7 @@ async def process_login(request: Request, db: Session = Depends(get_db), usernam
         return templates.TemplateResponse("login.html",
                                   {"request": request, "error": "Este usuário está inativo. Contate o administrador."},
                                   status_code=status.HTTP_401_UNAUTHORIZED)
-    request.session['user'] = {"id": funcionario.id, "nome": funcionario.nome, "cargo": funcionario.cargo,
-                               "funcao": funcionario.funcao}
+    request.session['user_id'] = funcionario.id
     return RedirectResponse(url="/painel", status_code=status.HTTP_303_SEE_OTHER)
 
 

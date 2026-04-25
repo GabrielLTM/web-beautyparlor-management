@@ -10,6 +10,7 @@ from fastapi import Depends, HTTPException, Request
 from starlette import status
 from sqlalchemy.orm import Session
 from database import SessionLocal
+import models
 
 # --- DEPENDÊNCIAS E SEGURANÇA ---
 
@@ -32,7 +33,7 @@ def get_db():
     finally:
         db.close()
 
-async def get_current_user(request: Request):
+async def get_current_user(request: Request, db: Session = Depends(get_db)):
     """
     Dependência para obter o utilizador atualmente logado a partir da sessão.
 
@@ -44,8 +45,11 @@ async def get_current_user(request: Request):
     Returns:
         dict: Os dados do utilizador armazenados na sessão.
     """
-    user = request.session.get('user')
-    if not user:
+    user_id = request.session.get('user_id')
+    if not user_id:
+        raise NotAuthenticatedException
+    user = db.query(models.Funcionario).filter(models.Funcionario.id == user_id).first()
+    if not user or not user.is_ativo:
         raise NotAuthenticatedException
     return user
 
@@ -61,7 +65,7 @@ def get_current_admin_user(user: dict = Depends(get_current_user)):
     Returns:
         dict: Os dados do utilizador, confirmados como sendo de um administrador.
     """
-    if user.get("funcao") != "Admin":
+    if user.funcao != "Admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acesso negado. Esta área é restrita a administradores."

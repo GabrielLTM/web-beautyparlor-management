@@ -233,7 +233,7 @@ async def handle_form_registrar_saida(
     # ... (código da função handle_form_registrar_saida)
     nova_saida = models.FluxoCaixa(
         descricao=descricao, valor=valor, tipo="Saída",
-        funcionario_id=user['id'], agendamento_id=None
+        funcionario_id=user.id, agendamento_id=None
     )
     db.add(nova_saida)
     db.commit()
@@ -457,7 +457,7 @@ async def toggle_status_funcionario(
                           gestão de funcionários após a alteração.
     """
     # ... (código da função toggle_status_funcionario)
-    if user['id'] == funcionario_id:
+    if user.id == funcionario_id:
         raise HTTPException(status_code=403, detail="Você não pode desativar sua própria conta.")
     db_funcionario = db.query(models.Funcionario).filter(models.Funcionario.id == funcionario_id).first()
     if not db_funcionario:
@@ -1013,7 +1013,7 @@ async def handle_form_pagamento_conta_corrente(
     if not funcionario:
         raise HTTPException(status_code=404, detail="Funcionário não encontrado")
     nova_transacao = models.TransacaoContaCorrente(
-        funcionario_id=funcionario_id, admin_id=user['id'], tipo="Crédito",
+        funcionario_id=funcionario_id, admin_id=user.id, tipo="Crédito",
         valor=valor, descricao=descricao
     )
     db.add(nova_transacao)
@@ -1057,7 +1057,7 @@ async def handle_form_debito_conta_corrente(
 
     nova_transacao = models.TransacaoContaCorrente(
         funcionario_id=funcionario_id,
-        admin_id=user['id'],
+        admin_id=user.id,
         tipo="Débito",
         valor=valor,
         descricao=descricao
