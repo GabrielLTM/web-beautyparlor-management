@@ -16,8 +16,6 @@ from fastapi.responses import RedirectResponse
 from starlette import status
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.staticfiles import StaticFiles
-import models
-from database import engine
 import os
 from dotenv import load_dotenv
 
@@ -39,6 +37,15 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
+# Adiciona o middleware de sessão à aplicação.
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key=os.getenv("SECRET_KEY"),
+    session_cookie="beauty_parlor_session",
+    same_site="lax",
+    https_only=False  # Crucial: permite o cookie em HTTP (localhost)
+)
+
 @app.exception_handler(NotAuthenticatedException)
 async def auth_exception_handler(request: Request, exc: NotAuthenticatedException):
     """
@@ -53,9 +60,6 @@ async def auth_exception_handler(request: Request, exc: NotAuthenticatedExceptio
     """
     return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
 
-
-# Adiciona o middleware de sessão à aplicação.
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"))
 
 # Inclui os routers modulares na aplicação principal.
 app.include_router(autenticacao.router)
