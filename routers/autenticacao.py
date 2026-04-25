@@ -61,10 +61,12 @@ async def process_login(request: Request, db: Session = Depends(get_db), usernam
     funcionario = db.query(models.Funcionario).filter(models.Funcionario.nome == username).first()
     if not funcionario or not verificar_senha(password, funcionario.senha_hash):
         return templates.TemplateResponse("login.html",
-                                          {"request": request, "error": "Nome de usuário ou senha incorretos."})
+                                  {"request": request, "error": "Nome de usuário ou senha incorretos."},
+                                  status_code=status.HTTP_401_UNAUTHORIZED)
     if not funcionario.is_ativo:
         return templates.TemplateResponse("login.html",
-                                          {"request": request, "error": "Este usuário está inativo. Contate o administrador."})
+                                  {"request": request, "error": "Este usuário está inativo. Contate o administrador."},
+                                  status_code=status.HTTP_401_UNAUTHORIZED)
     request.session['user'] = {"id": funcionario.id, "nome": funcionario.nome, "cargo": funcionario.cargo,
                                "funcao": funcionario.funcao}
     return RedirectResponse(url="/painel", status_code=status.HTTP_303_SEE_OTHER)
