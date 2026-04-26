@@ -12,6 +12,8 @@ from sqlalchemy.orm import Session
 from database import SessionLocal
 import models
 
+FUNCAO_ADMIN = "Admin"
+
 # --- DEPENDÊNCIAS E SEGURANÇA ---
 
 class NotAuthenticatedException(Exception):
@@ -65,7 +67,7 @@ def get_current_admin_user(user: dict = Depends(get_current_user)):
     Returns:
         dict: Os dados do utilizador, confirmados como sendo de um administrador.
     """
-    if user.funcao != "Admin":
+    if user.funcao != FUNCAO_ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acesso negado. Esta área é restrita a administradores."

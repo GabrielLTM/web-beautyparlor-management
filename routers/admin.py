@@ -91,7 +91,7 @@ async def get_pagina_desempenho_equipa(
         models.Agendamento.funcionario_id,
         func.sum(models.Agendamento.preco_final).label("total_vendas")
     ).filter(
-        models.Agendamento.status == "Concluído",
+        models.Agendamento.status == models.StatusAgendamento.CONCLUIDO,
         models.Agendamento.data_hora.between(inicio_periodo, fim_periodo)
     ).group_by(models.Agendamento.funcionario_id).all()
     vendas_servicos_por_func = {func_id: total for func_id, total in resultados_vendas_servicos}
@@ -101,7 +101,7 @@ async def get_pagina_desempenho_equipa(
         models.FluxoCaixa.funcionario_id,
         func.sum(models.FluxoCaixa.valor).label("total_vendas_produtos")
     ).filter(
-        models.FluxoCaixa.tipo == "Entrada",
+        models.FluxoCaixa.tipo == models.TipoFluxoCaixa.ENTRADA,
         models.FluxoCaixa.produto_id != None,
         models.FluxoCaixa.comissao_percentual > 0,
         models.FluxoCaixa.data_hora_registro.between(inicio_periodo, fim_periodo)
@@ -232,7 +232,7 @@ async def handle_form_registrar_saida(
     """
     # ... (código da função handle_form_registrar_saida)
     nova_saida = models.FluxoCaixa(
-        descricao=descricao, valor=valor, tipo="Saída",
+        descricao=descricao, valor=valor, tipo=models.TipoFluxoCaixa.SAIDA,
         funcionario_id=user.id, agendamento_id=None
     )
     db.add(nova_saida)
@@ -1013,7 +1013,7 @@ async def handle_form_pagamento_conta_corrente(
     if not funcionario:
         raise HTTPException(status_code=404, detail="Funcionário não encontrado")
     nova_transacao = models.TransacaoContaCorrente(
-        funcionario_id=funcionario_id, admin_id=user.id, tipo="Crédito",
+        funcionario_id=funcionario_id, admin_id=user.id, tipo=models.TipoTransacao.CREDITO,
         valor=valor, descricao=descricao
     )
     db.add(nova_transacao)
@@ -1058,7 +1058,7 @@ async def handle_form_debito_conta_corrente(
     nova_transacao = models.TransacaoContaCorrente(
         funcionario_id=funcionario_id,
         admin_id=user.id,
-        tipo="Débito",
+        tipo=models.TipoTransacao.DEBITO,
         valor=valor,
         descricao=descricao
     )
