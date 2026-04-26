@@ -39,11 +39,12 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Adiciona o middleware de sessão à aplicação.
 app.add_middleware(
-    SessionMiddleware, 
+    SessionMiddleware,
     secret_key=os.getenv("SECRET_KEY"),
     session_cookie="beauty_parlor_session",
     same_site="lax",
-    https_only=False  # Crucial: permite o cookie em HTTP (localhost)
+    https_only=False,  # Alterar para True quando HTTPS estiver ativo em produção
+    max_age=36000  # Sessão expira após 10 horas
 )
 
 @app.exception_handler(NotAuthenticatedException)
