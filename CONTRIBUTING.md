@@ -60,16 +60,16 @@ Garanta que sua cópia local consegue enxergar e baixar as atualizações feitas
 # Adicionar o repositório principal como "upstream" (fazer apenas uma vez)
 git remote add upstream https://github.com/perinotti/web-beautyparlor-management.git
 
-# Sempre que for começar um trabalho novo, atualize sua main local
-git checkout main
-git pull upstream main
+# Sempre que for começar um trabalho novo, atualize sua master local
+git checkout master
+git pull upstream master
 ```
 
 ---
 
 ## Passo 2. Criar uma branch para o seu trabalho
 
-Nunca trabalhe diretamente na branch `main`. Crie uma branch com um nome descritivo que identifique o commit que você está fazendo.
+Nunca trabalhe diretamente na branch `master`. Crie uma branch com um nome descritivo que identifique o commit que você está fazendo.
 
 O padrão de nome é: `tipo/descricao-curta`
 
@@ -97,7 +97,7 @@ Se você fechou o terminal desde o Passo 0, lembre-se de reativar o ambiente vir
 Com o ambiente ativado, rode o servidor localmente para testar suas alterações:
 
 ```r
-uvicorn main:app --reload
+uvicorn master:app --reload
 ```
 
 Verifique se a aplicação sobe sem erros no terminal e se a funcionalidade que você alterou continua funcionando no navegador.
@@ -150,7 +150,7 @@ git push origin fix/imports-deprecados
 Correções de qualidade identificadas no mapeamento inicial do projeto. O import deprecado gera avisos no SQLAlchemy moderno e pode quebrar em versões futuras. O `back_populates` faltante causava inconsistência silenciosa no ORM.
 
 ## Como testar
-1. Rodar `uvicorn main:app --reload`
+1. Rodar `uvicorn master:app --reload`
 2. Verificar que nenhum aviso de deprecação aparece no terminal ao iniciar
 3. Navegar pelo painel e verificar que produtos carregam normalmente
 ```
@@ -185,8 +185,8 @@ Respeite as dependências definidas no documento "Dependências Importantes":
 ### Como atualizar o repositório local após um merge
 
 ```bash
-git checkout main
-git pull upstream main
+git checkout master
+git pull upstream master
 ```
 
 ---
